@@ -36,6 +36,10 @@ public class Fog : MonoBehaviour
         quad.transform.rotation = Quaternion.Euler(90f, 0f, 0f);
         quad.transform.localScale = new Vector3(size.x, size.z, 1f);
         quad.GetComponent<Renderer>().sharedMaterial = new Material(Shader.Find("Sprites/Default")) { mainTexture = tex };
+        var wallBounds = new System.Collections.Generic.List<Bounds>();
+        foreach (var c in FindObjectsByType<Collider>(FindObjectsSortMode.None))
+            if (c.name.StartsWith("JungleWall")) wallBounds.Add(c.bounds);
+        Vision.SetWalls(wallBounds);
         Vision.Refresh();
         Rebuild(Viewer());
     }
@@ -83,7 +87,8 @@ public class Fog : MonoBehaviour
                 {
                     float dx = origin.x - halfX + (x + 0.5f) * cellX - p.x, dz = origin.z - halfZ + (z + 0.5f) * cellZ - p.z;
                     float v = Mathf.Clamp01((r - Mathf.Sqrt(dx * dx + dz * dz)) / EdgeSoftness);
-                    if (v > clear[z * w + x]) clear[z * w + x] = v;
+                    if (v <= clear[z * w + x]) continue;
+                    if (Vision.CanSee(p, r, new Vector3(p.x + dx, 0f, p.z + dz))) clear[z * w + x] = v; // walls cast a shadow
                 }
         }
         for (int i = 0; i < px.Length; i++) px[i] = new Color32(0, 0, 0, (byte)((1f - clear[i]) * Darkness * 255f));
