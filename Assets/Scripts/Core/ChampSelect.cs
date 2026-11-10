@@ -113,6 +113,7 @@ public class ChampSelect : MonoBehaviour
             if (GUILayout.Button("Join", GUILayout.Height(30f))) pendingJoin = true;
             GUILayout.EndHorizontal();
             if (notice.Length > 0) GUILayout.Label(notice);
+            else if (Net.Status.Length > 0) GUILayout.Label(Net.Status + " (see the Console for details)"); // e.g. hosting failed
             GUILayout.FlexibleSpace();
             if (GUILayout.Button("Start solo as " + sel.Name, GUILayout.Height(40f))) pendingSolo = true;
         }
