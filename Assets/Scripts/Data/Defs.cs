@@ -53,6 +53,26 @@ public class Effect
     public float Amount(Unit caster, int rank) =>
         Base + PerRank * (rank - 1) + AD * caster.Total.AD + AP * caster.Total.AP;
 
+    // Live version for tooltips: real numbers for this caster (so item bonuses show up) at this rank.
+    public string Describe(Unit caster, int rank)
+    {
+        float baseAmt = Base + PerRank * (Mathf.Max(1, rank) - 1);
+        float bonus = AD * caster.Total.AD + AP * caster.Total.AP;
+        string from = AD > 0f && AP > 0f ? $"{AD * 100f:0}% AD and {AP * 100f:0}% AP"
+                    : AD > 0f ? $"{AD * 100f:0}% AD" : $"{AP * 100f:0}% AP";
+        string detail = AD > 0f || AP > 0f ? $" [{baseAmt:0} base + {bonus:0} from {from}]" : "";
+        string perRank = PerRank > 0f ? $", +{PerRank:0} per rank" : "";
+        string text;
+        switch (Type)
+        {
+            case EffectType.Damage: text = $"{baseAmt + bonus:0} {DType} damage{detail}{perRank}"; break;
+            case EffectType.Heal: text = $"Heal {baseAmt + bonus:0}{detail}{perRank}"; break;
+            case EffectType.Shield: text = $"Shield {baseAmt + bonus:0} for {Duration:0.#}s{detail}{perRank}"; break;
+            default: text = Describe(); break;
+        }
+        return text + (Who == Affects.Caster ? " (self)" : Who == Affects.Allies ? " (allies)" : "");
+    }
+
     string Scaling() => (AD > 0f ? $" +{AD * 100f:0}% AD" : "") + (AP > 0f ? $" +{AP * 100f:0}% AP" : "");
 
     // Short text for the champion-select screen.
@@ -92,6 +112,32 @@ public class AbilityDef
     public string Describe() =>
         $"{Shape}, range {Range:0.#}{(Radius > 0f ? $", radius {Radius:0.#}" : "")}, cooldown {Cooldown:0}s, {Mana:0} mana\n" +
         string.Join(", ", Array.ConvertAll(Effects, e => e.Describe()));
+
+    string ShapeText()
+    {
+        switch (Shape)
+        {
+            case Shape.Self: return "Self cast";
+            case Shape.SelfArea: return "Around you";
+            case Shape.TargetEnemy: return "Target enemy";
+            case Shape.TargetAlly: return "Target ally";
+            case Shape.PointArea: return "Ground area";
+            default: return Pierce ? "Skillshot (pierces)" : "Skillshot (first enemy hit)";
+        }
+    }
+
+    // Hover text with numbers for this caster, so stats from items are included.
+    public string Tooltip(Unit c, int rank)
+    {
+        float cdr = Mathf.Min(c.Total.CDR, 0.4f);
+        string cd = $"{CooldownAt(Mathf.Max(1, rank), c.Total.CDR):0.0}s" + (cdr > 0f ? $" ({-cdr * 100f:0}% from items)" : "");
+        var sb = new System.Text.StringBuilder();
+        sb.Append($"<b>{Name}</b>  rank {rank}/{MaxRank}{(rank == 0 ? " (not learned, showing rank 1)" : "")}\n");
+        sb.Append($"{ShapeText()}, range {Range:0.#}{(Radius > 0f ? $", radius {Radius:0.#}" : "")}\n");
+        sb.Append($"Cooldown {cd}   Mana {Mana:0}\n");
+        foreach (var e in Effects) sb.Append("- ").Append(e.Describe(c, rank)).Append('\n');
+        return sb.ToString();
+    }
 }
 
 public class ChampionDef

@@ -1,3 +1,4 @@
+using System.Text;
 using UnityEngine;
 
 // Placeholder IMGUI interface: champion select, health bars, ability bar, shop, end screen.
@@ -6,6 +7,7 @@ public class Hud : MonoBehaviour
 {
     static readonly Color BlueCol = new Color(0.3f, 0.55f, 1f), RedCol = new Color(1f, 0.35f, 0.35f);
 
+    GUIStyle tipStyle;
     bool shopOpen;
     Vector2 scroll;
     ItemDef pendingBuy;
@@ -35,6 +37,43 @@ public class Hud : MonoBehaviour
         if (shopOpen && Champion.Local != null) DrawShop();
         GUI.Label(new Rect(10, 10, 600, 24), "Right-click: move / attack    Q W E R: abilities    B: shop (at your base)");
         if (gm.State == MatchState.Over) DrawEnd(gm);
+        DrawTooltip(); // last, so it sits on top
+    }
+
+    // What an item does to this champion's abilities, using the item's real stat bonuses.
+    static string ItemTip(ItemDef it, Champion c)
+    {
+        var sb = new StringBuilder($"<b>{it.Name}</b>  {it.Cost}g\n{it.Bonus}\n");
+        if (it.Components.Length > 0) sb.Append("Builds from: ").Append(string.Join(", ", it.Components)).Append('\n');
+        bool scales = false;
+        for (int i = 0; i < 4; i++)
+        {
+            var a = c.Def.Abilities[i];
+            float ad = 0f, ap = 0f;
+            foreach (var e in a.Effects) { ad += e.AD; ap += e.AP; }
+            string part = "";
+            if (it.Bonus.AD > 0f && ad > 0f) part += $" +{ad * it.Bonus.AD:0} from AD";
+            if (it.Bonus.AP > 0f && ap > 0f) part += $" +{ap * it.Bonus.AP:0} from AP";
+            if (part == "") continue;
+            sb.Append($"{"QWER"[i]} {a.Name}:{part}\n");
+            scales = true;
+        }
+        if (it.Bonus.CDR > 0f) sb.Append("Shortens all your ability cooldowns\n");
+        else if ((it.Bonus.AD > 0f || it.Bonus.AP > 0f) && !scales) sb.Append("None of your abilities scale with this stat\n");
+        return sb.ToString();
+    }
+
+    void DrawTooltip()
+    {
+        if (Event.current.type != EventType.Repaint || string.IsNullOrEmpty(GUI.tooltip)) return;
+        if (tipStyle == null)
+            tipStyle = new GUIStyle(GUI.skin.box) { wordWrap = true, richText = true, alignment = TextAnchor.UpperLeft, padding = new RectOffset(8, 8, 6, 6) };
+        var content = new GUIContent(GUI.tooltip);
+        const float w = 340f;
+        float h = tipStyle.CalcHeight(content, w);
+        var m = Event.current.mousePosition;
+        var r = new Rect(Mathf.Clamp(m.x + 16f, 4f, Screen.width - w - 4f), Mathf.Clamp(m.y - h - 8f, 4f, Screen.height - h - 4f), w, h);
+        GUI.Box(r, content, tipStyle);
     }
 
     void DrawWorldBars()
@@ -81,7 +120,8 @@ public class Hud : MonoBehaviour
             float cd = Mathf.Max(0f, c.CdEnd[i] - Time.time);
             string status = c.Ranks[i] == 0 ? "not learned" : cd > 0f ? $"{cd:0.0}s" : "ready";
             GUILayout.BeginVertical(GUI.skin.box, GUILayout.Width(150));
-            GUILayout.Label($"{"QWER"[i]}: {c.Def.Abilities[i].Name}\nrank {c.Ranks[i]}  {status}");
+            GUILayout.Label(new GUIContent($"{"QWER"[i]}: {c.Def.Abilities[i].Name}\nrank {c.Ranks[i]}  {status}",
+                c.Def.Abilities[i].Tooltip(c.U, c.Ranks[i])));
             if (GUILayout.Button("+ rank") && c.CanRank(i)) pendingRank = i; // always drawn, so layout stays stable
             GUILayout.EndVertical();
         }
@@ -100,14 +140,14 @@ public class Hud : MonoBehaviour
         foreach (var it in Content.Items)
         {
             string recipe = it.Components.Length > 0 ? "  [" + string.Join(" + ", it.Components) + "]" : "";
-            if (GUILayout.Button($"{it.Name} - {c.PriceOf(it)}g   {it.Bonus}{recipe}")) pendingBuy = it;
+            if (GUILayout.Button(new GUIContent($"{it.Name} - {c.PriceOf(it)}g   {it.Bonus}{recipe}", ItemTip(it, c)))) pendingBuy = it;
         }
         GUILayout.EndScrollView();
         GUILayout.Label("Click an owned item to sell it (70%):");
         for (int i = 0; i < Champion.MaxItems; i++)
         {
             string label = i < c.Items.Count ? c.Items[i].Name : "(empty)";
-            if (GUILayout.Button(label) && i < c.Items.Count) pendingSell = i;
+            if (GUILayout.Button(new GUIContent(label, i < c.Items.Count ? ItemTip(c.Items[i], c) : "")) && i < c.Items.Count) pendingSell = i;
         }
         GUILayout.EndArea();
     }

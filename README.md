@@ -17,3 +17,7 @@ Content (champions, abilities, items) is plain tables in `Assets/Scripts/Data/Co
 
 - Champion icons are drawn in code (champion colour, role-coloured ring, initials). To use real art, put a PNG named exactly like the champion (e.g. `Orrin Ironwall.png`) in `Assets/Resources/Icons/`; it replaces the placeholder automatically.
 - Auto attacks spawn a few small pale sparks. Abilities spawn bigger bursts coloured by effect (orange physical, purple magic, green heal, cyan shield, yellow crowd control), plus rings for area abilities and trails for skillshots. See `Assets/Scripts/Core/Vfx.cs`.
+
+### Tooltips
+
+Hover an ability in the bottom bar for its shape, range, cooldown (with item cooldown reduction) and real damage/heal/shield numbers, split into base and the part that comes from AD/AP. Hover a shop item to see what it adds and how much extra each of your abilities gets from it.
