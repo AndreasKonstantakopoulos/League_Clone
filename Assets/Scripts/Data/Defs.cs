@@ -1,0 +1,120 @@
+using System;
+using System.Collections.Generic;
+using UnityEngine;
+
+public enum Team { Blue, Red }
+public enum Role { Tank, Bruiser, Assassin, Marksman, Mage, Support }
+public enum Shape { Self, SelfArea, TargetEnemy, TargetAlly, PointArea, Skillshot }
+public enum EffectType { Damage, Heal, Shield, Stun, Root, Slow, Silence, Dash, Knockback, Pull, Buff }
+public enum DamageType { Physical, Magic, True }
+public enum Affects { Enemies, Allies, Caster }
+
+[Serializable]
+public class Stats
+{
+    public float Health, Mana, AD, AP, Armor, MR, AttackSpeed, MoveSpeed, HealthRegen, ManaRegen, CDR;
+
+    public static Stats operator +(Stats a, Stats b) => new Stats
+    {
+        Health = a.Health + b.Health, Mana = a.Mana + b.Mana, AD = a.AD + b.AD, AP = a.AP + b.AP,
+        Armor = a.Armor + b.Armor, MR = a.MR + b.MR, AttackSpeed = a.AttackSpeed + b.AttackSpeed,
+        MoveSpeed = a.MoveSpeed + b.MoveSpeed, HealthRegen = a.HealthRegen + b.HealthRegen,
+        ManaRegen = a.ManaRegen + b.ManaRegen, CDR = a.CDR + b.CDR
+    };
+
+    public Stats Scaled(float k) => new Stats
+    {
+        Health = Health * k, Mana = Mana * k, AD = AD * k, AP = AP * k, Armor = Armor * k, MR = MR * k,
+        AttackSpeed = AttackSpeed * k, MoveSpeed = MoveSpeed * k, HealthRegen = HealthRegen * k,
+        ManaRegen = ManaRegen * k, CDR = CDR * k
+    };
+
+    public override string ToString()
+    {
+        var parts = new List<string>();
+        void Add(string n, float v, string fmt = "0") { if (v != 0f) parts.Add($"+{v.ToString(fmt)} {n}"); }
+        Add("HP", Health); Add("Mana", Mana); Add("AD", AD); Add("AP", AP); Add("Armor", Armor); Add("MR", MR);
+        Add("AS", AttackSpeed, "0.00"); Add("MS", MoveSpeed, "0.0"); Add("HP/s", HealthRegen, "0.0");
+        Add("MP/s", ManaRegen, "0.0"); Add("% CDR", CDR * 100f);
+        return string.Join(", ", parts);
+    }
+}
+
+// One building block of an ability. An ability is just a list of these.
+public class Effect
+{
+    public EffectType Type;
+    public DamageType DType;
+    public Affects Who = Affects.Enemies;
+    public float Base, PerRank, AD, AP, Duration;
+    public Stats Buff;
+
+    // Damage/heal/shield amount, slow fraction, or dash/knockback/pull distance.
+    public float Amount(Unit caster, int rank) =>
+        Base + PerRank * (rank - 1) + AD * caster.Total.AD + AP * caster.Total.AP;
+}
+
+public class AbilityDef
+{
+    public string Name;
+    public Shape Shape;
+    public float Range, Radius, Cooldown, CdPerRank, Mana;
+    public bool Pierce;
+    public int MaxRank = 5;
+    public Effect[] Effects;
+
+    public AbilityDef Pierces() { Pierce = true; return this; }
+    public AbilityDef Ult() { MaxRank = 3; CdPerRank = Cooldown * 0.1f; return this; }
+    public float CooldownAt(int rank, float cdr) =>
+        Mathf.Max(1f, Cooldown - CdPerRank * (rank - 1)) * (1f - Mathf.Min(cdr, 0.4f));
+}
+
+public class ChampionDef
+{
+    public string Name;
+    public Role Role;
+    public Color Color;
+    public float AttackRange;
+    public Stats Base, Growth;      // growth is added once per level above 1
+    public AbilityDef[] Abilities;  // Q, W, E, R
+}
+
+public class ItemDef
+{
+    public string Name;
+    public int Cost;
+    public Stats Bonus;
+    public string[] Components = new string[0];
+}
+
+// Short builders so content tables stay readable.
+public static class Fx
+{
+    public static Stats St(float hp = 0, float mana = 0, float ad = 0, float ap = 0, float armor = 0, float mr = 0,
+        float aspd = 0, float ms = 0, float hpr = 0, float mpr = 0, float cdr = 0) => new Stats
+    {
+        Health = hp, Mana = mana, AD = ad, AP = ap, Armor = armor, MR = mr, AttackSpeed = aspd,
+        MoveSpeed = ms, HealthRegen = hpr, ManaRegen = mpr, CDR = cdr
+    };
+
+    static Effect Dmg(DamageType t, float b, float pr, float ad, float ap) =>
+        new Effect { Type = EffectType.Damage, DType = t, Base = b, PerRank = pr, AD = ad, AP = ap };
+    public static Effect Phys(float b, float pr, float ad = 0, float ap = 0) => Dmg(DamageType.Physical, b, pr, ad, ap);
+    public static Effect Magic(float b, float pr, float ad = 0, float ap = 0) => Dmg(DamageType.Magic, b, pr, ad, ap);
+    public static Effect Heal(float b, float pr, float ap = 0, Affects who = Affects.Allies) =>
+        new Effect { Type = EffectType.Heal, Base = b, PerRank = pr, AP = ap, Who = who };
+    public static Effect Shield(float b, float pr, float ap = 0, float dur = 3f, Affects who = Affects.Allies) =>
+        new Effect { Type = EffectType.Shield, Base = b, PerRank = pr, AP = ap, Duration = dur, Who = who };
+    public static Effect Stun(float d) => new Effect { Type = EffectType.Stun, Duration = d };
+    public static Effect Root(float d) => new Effect { Type = EffectType.Root, Duration = d };
+    public static Effect Silence(float d) => new Effect { Type = EffectType.Silence, Duration = d };
+    public static Effect Slow(float frac, float d) => new Effect { Type = EffectType.Slow, Base = frac, Duration = d };
+    public static Effect Dash(float dist) => new Effect { Type = EffectType.Dash, Base = dist, Who = Affects.Caster };
+    public static Effect Knock(float dist) => new Effect { Type = EffectType.Knockback, Base = dist };
+    public static Effect Pull(float dist) => new Effect { Type = EffectType.Pull, Base = dist };
+    public static Effect Buff(Stats s, float dur, Affects who = Affects.Caster) =>
+        new Effect { Type = EffectType.Buff, Buff = s, Duration = dur, Who = who };
+
+    public static AbilityDef Ab(string name, Shape shape, float range, float radius, float cd, float mana, params Effect[] fx) =>
+        new AbilityDef { Name = name, Shape = shape, Range = range, Radius = radius, Cooldown = cd, CdPerRank = 0.5f, Mana = mana, Effects = fx };
+}
