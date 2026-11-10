@@ -20,6 +20,8 @@ public class Unit : MonoBehaviour
     public float GoldBounty, XpBounty;
     public float LastDamaged = -999f;
     public Unit LastAttacker; // who hit us last (jungle monsters use it to pick a target)
+    public int NetId;                           // identifies this unit across the network (assigned by the host)
+    public bool Mirror, MirrorInvulnerable;     // Mirror = a client-side copy that only shows what the host reports
     public readonly List<Unit> Requires = new List<Unit>(); // all must be dead before this can be damaged
     public NavMeshAgent Agent;
 
@@ -34,10 +36,19 @@ public class Unit : MonoBehaviour
     public bool Silenced => Time.time < silenceUntil;
     public bool CanMove => Alive && !Stunned && !Rooted;
     public bool CanCast => Alive && !Stunned && !Silenced;
-    public bool Invulnerable => Requires.Exists(u => u != null && u.Alive);
+    public bool Invulnerable => Mirror ? MirrorInvulnerable : Requires.Exists(u => u != null && u.Alive);
 
-    void OnEnable() { All.Add(this); }
-    void OnDisable() { All.Remove(this); }
+    void OnEnable()
+    {
+        All.Add(this);
+        if (Net.IsHost && !Mirror) { NetId = Net.NewId(); Net.Track(this); }
+    }
+
+    void OnDisable()
+    {
+        All.Remove(this);
+        Net.Untrack(this);
+    }
 
     public void Init(Team team, UnitKind kind, Stats stats, float radius)
     {
@@ -57,7 +68,7 @@ public class Unit : MonoBehaviour
 
     void Update()
     {
-        if (!Alive) return;
+        if (Mirror || !Alive) return;
         float dt = Time.deltaTime;
         if (buffs.RemoveAll(b => Time.time >= b.Until) > 0) Recalc();
         if (Shield > 0f && Time.time >= shieldUntil) Shield = 0f;

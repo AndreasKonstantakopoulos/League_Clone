@@ -4,7 +4,7 @@ using UnityEngine;
 using UnityEngine.AI;
 using UnityEngine.SceneManagement;
 
-public enum MatchState { Playing, Over }
+public enum MatchState { Waiting, Playing, Over } // Waiting: host is waiting for every player's map to load
 
 public static class Rules
 {
@@ -21,14 +21,19 @@ public static class Rules
 public class GameManager : MonoBehaviour
 {
     public static GameManager I;
-    public MatchState State = MatchState.Playing;
+    public MatchState State = MatchState.Waiting;
     public float Clock;
     public Team Winner;
     public JungleManager Jungle;
     public string Banner;
     public float BannerUntil;
 
-    public void Announce(string text) { Banner = text; BannerUntil = Time.time + 6f; }
+    public void Announce(string text)
+    {
+        Banner = text;
+        BannerUntil = Time.time + 6f;
+        if (Net.IsHost) Net.FxAnnounce(text);
+    }
 
     static readonly string[] Lanes = { "Top", "Bottom" };
     readonly Dictionary<string, List<Vector3>> lanePaths = new Dictionary<string, List<Vector3>>(); // blue base -> red base
@@ -59,7 +64,23 @@ public class GameManager : MonoBehaviour
         if (I == this) I = null;
     }
 
-    void Start() { StartMatch(Session.Selected ?? Content.Champions[0]); } // champion chosen in the ChampSelect scene
+    void Start()
+    {
+        if (!Net.Online) { StartMatch(Session.Selected ?? Content.Champions[0]); return; } // solo: champion from the ChampSelect scene
+        if (Net.IsHost) StartCoroutine(HostStart());
+        else { State = MatchState.Playing; Net.SendReady(); } // clients just show what the host sends
+    }
+
+    // Host: wait (up to 20 s) until everyone's map has loaded, then put each player's champion on their team's spawn.
+    IEnumerator HostStart()
+    {
+        float t0 = Time.time;
+        while (!Net.AllReady && Time.time - t0 < 20f) yield return null;
+        var slot = new int[2];
+        foreach (var p in Net.Players)
+            SpawnChampion(Content.Champions[p.ChampIndex], p.Team, slot[(int)p.Team]++, p.Id, p.Id == Net.MyId);
+        State = MatchState.Playing;
+    }
 
     static GameObject Find(string name) =>
         GameObject.Find(name) ?? throw new System.Exception($"Missing map object {name}. Run Tools > Build Greybox Map.");
@@ -76,6 +97,7 @@ public class GameManager : MonoBehaviour
             npc.transform.position = Find($"Shop_{tn}").transform.position + Vector3.up * 1.1f;
             npc.GetComponent<Renderer>().material.color = new Color(1f, 0.85f, 0.2f);
             shopNpc[(int)team] = npc.transform;
+            if (Net.IsClientOnly) continue; // clients get towers and Nexus from the host's spawn messages
             nexus[(int)team] = MakeStructure(Find($"Nexus_{tn}"), team, UnitKind.Nexus, 3500f, 3f);
             foreach (var lane in Lanes)
             {
@@ -85,6 +107,7 @@ public class GameManager : MonoBehaviour
                 nexus[(int)team].Requires.Add(inner); // then both inner towers, then the Nexus
             }
         }
+        if (Net.IsClientOnly) return;
         foreach (var lane in Lanes)
         {
             var path = new List<Vector3>();
@@ -109,19 +132,33 @@ public class GameManager : MonoBehaviour
     public static Vector3 Snap(Vector3 p) =>
         NavMesh.SamplePosition(p, out var hit, 5f, NavMesh.AllAreas) ? hit.position : p;
 
-    public void StartMatch(ChampionDef def)
+    // slot spreads teammates along the spawn pad so they do not stand on each other
+    Champion SpawnChampion(ChampionDef def, Team team, int slot, ulong owner, bool local)
     {
         var go = GameObject.CreatePrimitive(PrimitiveType.Capsule);
         go.name = "Player_" + def.Name;
-        go.AddComponent<Champion>().Init(def, Team.Blue, Snap(SpawnOf(Team.Blue)), true);
-        var cam = Camera.main;
-        if (cam != null) cam.gameObject.AddComponent<CameraFollow>().Target = go.transform;
+        var ch = go.AddComponent<Champion>();
+        ch.OwnerId = owner;
+        ch.Init(def, team, Snap(SpawnOf(team) + new Vector3(0f, 0f, (slot - 1) * 2.5f)), local);
+        if (local)
+        {
+            var cam = Camera.main;
+            if (cam != null) cam.gameObject.AddComponent<CameraFollow>().Target = go.transform;
+        }
+        if (Net.IsHost) Net.RegisterChampion(owner, ch);
+        return ch;
+    }
+
+    public void StartMatch(ChampionDef def)
+    {
+        SpawnChampion(def, Team.Blue, 1, 0, true);
         State = MatchState.Playing;
     }
 
     void Update()
     {
-        if (State != MatchState.Playing) return;
+        if (Net.IsClientOnly && Net.Lost) { Net.Shutdown(); SceneManager.LoadScene("ChampSelect"); return; } // host went away
+        if (State != MatchState.Playing || Net.IsClientOnly) return; // clients get the clock from the host
         Clock += Time.deltaTime;
         if (Clock < nextWave) return;
         nextWave += Rules.WaveInterval;
@@ -193,5 +230,9 @@ public class GameManager : MonoBehaviour
     }
 
     public void Rematch() { SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex); }
-    public void ToChampSelect() { SceneManager.LoadScene("ChampSelect"); }
+    public void ToChampSelect()
+    {
+        if (Net.Online) Net.Shutdown();
+        SceneManager.LoadScene("ChampSelect");
+    }
 }

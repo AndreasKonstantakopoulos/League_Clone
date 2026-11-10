@@ -2,12 +2,16 @@ using UnityEngine;
 using UnityEngine.SceneManagement;
 
 // Champion-select scene: roster with icons on the left, a spinning 3D preview in the middle,
-// stats and ability descriptions on the right. Starting loads the Map scene.
+// stats and ability descriptions on the right, and a lobby panel to host or join a game with friends.
+// Solo play: pick and press Start. Online: the host presses Start once everyone has picked.
 public class ChampSelect : MonoBehaviour
 {
     ChampionDef sel;
     GameObject preview;
     Vector2 listScroll;
+    string ip = "127.0.0.1", port = Net.DefaultPort.ToString(), notice = "";
+    // Button presses are queued and run in Update, because changing the UI mid-OnGUI breaks IMGUI layout.
+    bool pendingHost, pendingJoin, pendingLeave, pendingStart, pendingSolo;
 
     void Start()
     {
@@ -37,9 +41,23 @@ public class ChampSelect : MonoBehaviour
     {
         sel = d;
         preview.GetComponent<Renderer>().material.color = d.Color;
+        if (Net.Online) Net.Pick(Content.Champions.IndexOf(d)); // the lobby shows everyone's pick
     }
 
-    void Update() { preview.transform.Rotate(0f, 40f * Time.deltaTime, 0f); }
+    ushort Port() { return ushort.TryParse(port, out var p) ? p : Net.DefaultPort; }
+
+    void Update()
+    {
+        preview.transform.Rotate(0f, 40f * Time.deltaTime, 0f);
+        if (Net.Lost) { notice = Net.Status; Net.Shutdown(); }
+        if (pendingHost) { pendingHost = false; notice = ""; Net.StartHost(Port()); Net.Pick(Content.Champions.IndexOf(sel)); }
+        if (pendingJoin) { pendingJoin = false; notice = ""; Net.Join(ip, Port()); }
+        if (pendingLeave) { pendingLeave = false; Net.Shutdown(); }
+        if (pendingStart) { pendingStart = false; Net.StartMatch(); }
+        if (pendingSolo) { pendingSolo = false; Session.Selected = sel; SceneManager.LoadScene("Map"); }
+        // a client that just connected has no pick on the host yet: send the one on screen
+        if (Net.IsClientOnly && Net.Me == null) Net.Pick(Content.Champions.IndexOf(sel));
+    }
 
     void OnGUI()
     {
@@ -75,10 +93,44 @@ public class ChampSelect : MonoBehaviour
         }
         GUILayout.EndArea();
 
-        if (GUI.Button(new Rect(Screen.width / 2f - 130f, Screen.height - 70f, 260f, 50f), "Start match as " + sel.Name))
+        DrawLobby();
+    }
+
+    void DrawLobby()
+    {
+        GUILayout.BeginArea(new Rect(Screen.width / 2f - 250f, Screen.height - 270f, 500f, 250f), GUI.skin.box);
+        if (!Net.Online)
         {
-            Session.Selected = sel;
-            SceneManager.LoadScene("Map");
+            GUILayout.Label("Play with friends");
+            GUILayout.BeginHorizontal();
+            GUILayout.Label("IP", GUILayout.Width(24f));
+            ip = GUILayout.TextField(ip, GUILayout.Width(170f));
+            GUILayout.Label("Port", GUILayout.Width(34f));
+            port = GUILayout.TextField(port, GUILayout.Width(70f));
+            GUILayout.EndHorizontal();
+            GUILayout.BeginHorizontal();
+            if (GUILayout.Button("Host a game", GUILayout.Height(30f))) pendingHost = true;
+            if (GUILayout.Button("Join", GUILayout.Height(30f))) pendingJoin = true;
+            GUILayout.EndHorizontal();
+            if (notice.Length > 0) GUILayout.Label(notice);
+            GUILayout.FlexibleSpace();
+            if (GUILayout.Button("Start solo as " + sel.Name, GUILayout.Height(40f))) pendingSolo = true;
         }
+        else
+        {
+            GUILayout.Label(Net.Status);
+            foreach (var p in Net.Players)
+                GUILayout.Label($"{(p.Id == Net.MyId ? "You" : "Player " + p.Id)}  -  {p.Team}  -  {Content.Champions[p.ChampIndex].Name}");
+            GUILayout.FlexibleSpace();
+            GUILayout.BeginHorizontal();
+            if (GUILayout.Button("Leave", GUILayout.Height(40f), GUILayout.Width(100f))) pendingLeave = true;
+            if (Net.IsHost)
+            {
+                if (GUILayout.Button($"Start match ({Net.Players.Count} players)", GUILayout.Height(40f))) pendingStart = true;
+            }
+            else GUILayout.Label("Waiting for the host to start...");
+            GUILayout.EndHorizontal();
+        }
+        GUILayout.EndArea();
     }
 }

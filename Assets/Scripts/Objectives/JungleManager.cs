@@ -19,6 +19,8 @@ public class Objective
     public Stats Buff;
     public float BuffSeconds, TeamGold, NextSpawn, Respawn;
     public Unit Alive;
+    public bool RemoteAlive; // clients: reported by the host
+    public bool IsAlive => Net.IsClientOnly ? RemoteAlive : Alive != null && Alive.Alive;
 }
 
 public struct ActiveBuff { public string Name; public Team Team; public float Until; }
@@ -44,6 +46,7 @@ public class JungleManager : MonoBehaviour
 
     void Awake()
     {
+        if (!Net.IsClientOnly) // clients never spawn monsters
         foreach (var side in new[] { "Blue", "Red" })
             foreach (var lane in new[] { "Top", "Bottom" })
             {
@@ -72,7 +75,7 @@ public class JungleManager : MonoBehaviour
     void Update()
     {
         var gm = GameManager.I;
-        if (gm == null || gm.State != MatchState.Playing) return;
+        if (gm == null || gm.State != MatchState.Playing || Net.IsClientOnly) return;
         float now = gm.Clock;
 
         foreach (var camp in camps)

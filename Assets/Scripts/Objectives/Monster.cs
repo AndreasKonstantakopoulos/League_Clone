@@ -67,7 +67,6 @@ public class Monster : MonoBehaviour
             t.TakeDamage(d.SlamDamage, DamageType.Magic, u);
             t.Slow(0.3f, 1.5f);
         }
-        Vfx.Slam(transform.position, d.SlamRadius, d.Color, 0.7f);
-        CameraFollow.Shake(0.25f);
+        Vfx.MonsterSlam(transform.position, d.SlamRadius, d.Color, 0.7f);
     }
 }

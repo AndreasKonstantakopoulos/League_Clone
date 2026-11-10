@@ -18,6 +18,8 @@ public class Champion : MonoBehaviour
     public readonly List<ItemDef> Items = new List<ItemDef>();
     public bool Dead;
     public float RespawnAt;
+    public bool Mirror;      // client-side copy: shows what the host reports and sends commands instead of acting
+    public ulong OwnerId;    // which connected player controls this champion
 
     Unit target;
     bool moveOrder;
@@ -57,6 +59,35 @@ public class Champion : MonoBehaviour
         if (local) Local = this;
     }
 
+    // Client side: wraps a mirrored unit. All numbers arrive from the host (see Net.OnOwn / OnSnap).
+    public void InitMirror(ChampionDef def, Unit u, ulong owner, bool local)
+    {
+        Def = def;
+        U = u;
+        OwnerId = owner;
+        Mirror = true;
+        renders = GetComponentsInChildren<Renderer>();
+        if (!local) return;
+        Local = this;
+        var cam = Camera.main;
+        if (cam != null && cam.GetComponent<CameraFollow>() == null) cam.gameObject.AddComponent<CameraFollow>().Target = transform;
+    }
+
+    public void SetMirrorVisible(bool visible) { foreach (var r in renders) r.enabled = visible; }
+
+    public void ApplyMirror(int level, int xp, int skillPoints, float gold, int[] ranks, float[] cdLeft, List<string> items,
+        bool dead, float respawnLeft, float recall)
+    {
+        Level = level; Xp = xp; SkillPoints = skillPoints; Gold = gold;
+        for (int i = 0; i < 4; i++) { Ranks[i] = ranks[i]; CdEnd[i] = Time.time + cdLeft[i]; }
+        Items.Clear();
+        foreach (var n in items) { var it = Content.Item(n); if (it != null) Items.Add(it); }
+        Dead = dead;
+        RespawnAt = Time.time + respawnLeft;
+        Recalling = recall >= 0f;
+        recallStart = Time.time - Mathf.Clamp01(recall) * RecallTime;
+    }
+
     void OnDestroy()
     {
         All.Remove(this);
@@ -78,6 +109,11 @@ public class Champion : MonoBehaviour
     void Update()
     {
         if (GameManager.I == null || GameManager.I.State != MatchState.Playing) return;
+        if (Mirror) // clients only forward input; the host does the rest
+        {
+            if (this == Local && U.Alive) HandleInput();
+            return;
+        }
         Gold += Rules.PassiveGold * Time.deltaTime;
         if (Dead)
         {
@@ -126,20 +162,42 @@ public class Champion : MonoBehaviour
     }
 
     // ---- input ----
+    // Input becomes a command. On the host (or solo) it runs right away; on a client it is sent to the host.
     void HandleInput()
     {
-        if (GameInput.KeyDown('B')) StartRecall();
+        bool remote = Net.IsClientOnly;
+        if (GameInput.KeyDown('B')) { if (remote) Net.SendRecall(); else CmdRecall(); }
         if (GameInput.RightClickDown)
         {
-            Recalling = false;
             var p = GameInput.MouseGround();
             var e = Unit.NearestTo(p, 2f, u => u.Team != U.Team && !u.Invulnerable);
-            if (e != null) { target = e; moveOrder = false; }
-            else { target = null; MoveTo(p); }
+            if (e != null) { if (remote) Net.SendAttack(e); else CmdAttack(e); }
+            else { if (remote) Net.SendMove(p); else CmdMove(p); }
         }
         for (int i = 0; i < 4; i++)
-            if (GameInput.KeyDown("QWER"[i])) TryCast(i, GameInput.MouseGround());
+            if (GameInput.KeyDown("QWER"[i]))
+            {
+                var aim = GameInput.MouseGround();
+                if (remote) Net.SendCast(i, aim); else CmdCast(i, aim);
+            }
     }
+
+    // Commands: run on the host for every champion. Clients are untrusted, so each one re-checks what it is asked to do.
+    public void CmdMove(Vector3 p) { Recalling = false; target = null; MoveTo(p); }
+    public void CmdAttack(Unit t)
+    {
+        if (t == null || t.Team == U.Team || t.Invulnerable) return;
+        Recalling = false;
+        target = t;
+        moveOrder = false;
+    }
+    public void CmdCast(int slot, Vector3 aim) { TryCast(slot, aim); }
+    public void CmdRecall() { StartRecall(); }
+
+    // What the shop and skill buttons call: act directly, or ask the host.
+    public void RequestBuy(ItemDef it) { if (Net.IsClientOnly) Net.SendBuy(it); else Buy(it); }
+    public void RequestSell(int index) { if (Net.IsClientOnly) Net.SendSell(index); else Sell(index); }
+    public void RequestRank(int slot) { if (Net.IsClientOnly) Net.SendRank(slot); else Rank(slot); }
 
     void MoveTo(Vector3 p)
     {

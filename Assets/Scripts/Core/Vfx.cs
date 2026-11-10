@@ -255,11 +255,21 @@ public static class Vfx
     // Used by recall: a flat ring that stays put.
     public static void Ring(Vector3 center, float radius, Color c)
     {
+        if (Net.IsHost) Net.FxRing(center, radius, c);
         Make(new Spec
         {
             Pos = At(center, 0.15f), Shape = ParticleSystemShapeType.Circle, ShapeRadius = radius, Edge = true, Flat = true,
             Count = Mathf.Max(16, (int)(radius * 10f)), LifeMin = 0.7f, LifeMax = 0.7f, SizeMin = 0.3f, SizeMax = 0.3f, EndScale = 0.3f, Color = c, Color2 = Hot(c)
         });
+    }
+
+    // Big jungle monster stomp: effect for everyone, camera shake only if you are close.
+    public static void MonsterSlam(Vector3 center, float radius, Color c, float power)
+    {
+        if (Net.IsHost) Net.FxSlam(center, radius, c, power);
+        Slam(center, radius, c, power);
+        var me = Champion.Local;
+        if (me != null && Unit.FlatDist(me.transform.position, center) < radius * 2.5f) CameraFollow.Shake(0.25f);
     }
 
     public static Color TeamColor(Team t) =>
@@ -268,6 +278,7 @@ public static class Vfx
     // Tower bolt: a big glowing orb that flies to the target, then damages it and bursts on arrival.
     public static void TowerShot(Unit tower, Unit target, float damage)
     {
+        if (Net.IsHost) Net.FxTower(tower, target);
         Color c = TeamColor(tower.Team);
         Vector3 from = At(tower.transform.position, 3.4f);
         Glow(from, c, 2.2f, 0.2f); // muzzle flash
@@ -277,18 +288,20 @@ public static class Vfx
         Make(new Spec { Parent = r.transform, Count = 0, RatePerDistance = 20f, Duration = 3f, ShapeRadius = 0.1f, SizeMin = 0.5f, SizeMax = 0.8f, LifeMin = 0.35f, LifeMax = 0.5f, EndScale = 0.1f, Color = c, Color2 = Hot(c) });
         r.Homing(target, 22f, Vector3.up, () =>
         {
-            target.TakeDamage(damage, DamageType.Physical, tower);
+            if (!Net.IsClientOnly) target.TakeDamage(damage, DamageType.Physical, tower); // clients only show the bolt
             Vector3 body = At(target.transform.position, 1f);
             Glow(body, c, 2.4f, 0.2f);
             Sparks(body, Quaternion.identity, ParticleSystemShapeType.Sphere, 0f, 16, 5f, 11f, 0.3f, c, 0.14f);
             Shockwave(At(target.transform.position, 0.15f), 2f, c, 0.3f, 0.3f);
-            if (target.Kind == UnitKind.Champion) CameraFollow.Shake(0.2f);
+            var me = Champion.Local;
+            if (me != null && target == me.U) CameraFollow.Shake(0.2f); // only shake for hits on your own champion
         });
     }
 
     // Auto attack: melee = a short slash, ranged = a small bolt. Deliberately small and pale next to abilities.
     public static void Auto(Unit caster, Color accent, bool melee, Unit target)
     {
+        if (Net.IsHost) Net.FxAuto(caster, accent, melee, target);
         Vector3 from = At(caster.transform.position, 1f), to = At(target.transform.position, 1f);
         Vector3 dir = (to - from).normalized;
         var pale = new Color(1f, 0.95f, 0.75f);
@@ -300,6 +313,7 @@ public static class Vfx
     // The cast itself, then a reaction on everything it hit. `dist` is how far the caster is aiming.
     public static void Cast(AbilityDef a, Unit caster, Color accent, Vector3 pos, Vector3 dir, Vector3 point, float dist, List<Unit> hit, bool shake)
     {
+        if (Net.IsHost) Net.FxCast(a, caster, pos, dir, point, dist, hit);
         Color c = a.Tint ?? ColorOf(a);
         float p = a.Power;
         Vector3 chest = At(pos, 1f);

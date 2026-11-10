@@ -30,3 +30,10 @@ The map size is one constant (`K` in `Assets/Editor/BuildGreyboxMap.cs`, now 1.6
 - Four camps (a Brute and two Imps each) spawn at 15 s and respawn 60 s after being cleared. They pay gold and XP, and fight back if you get close or hit them. They walk home and heal if you pull them too far.
 - Two big objectives sit in the middle: the Ember Drake (spawns at 1:30, respawns every 3 min) and the Void Titan (spawns at 4:00, respawns every 5 min). Both stomp nearby enemies. Killing one gives your whole team a timed buff plus gold, and a banner announces it. Timers are on the top-left of the screen. All the timings are constants in `Rules` (`GameManager.cs`) and are short on purpose for testing.
 - Monster stats and the buffs are tables at the top of `Assets/Scripts/Objectives/JungleManager.cs`.
+
+### Playing with friends (online)
+
+- In champion select use the **Play with friends** panel. One player presses **Host a game**; the others type the host's IP and press **Join**. Everyone picks a champion (the lobby shows the picks and teams: players alternate Blue, Red, Blue...), then the host presses **Start match**. Up to 6 players.
+- The host runs the whole game, exactly like solo play. Clients only send commands (move, attack, cast, recall, buy, sell, rank) and mirror what the host sends: every champion, minion, monster, tower, health bars, objective timers, buffs, and all particle effects. Your own gold, cooldowns and items are sent privately to you.
+- Same machine / Multiplayer Play Mode: host on `127.0.0.1`, join `127.0.0.1`. Over the internet the host must forward UDP port 7777 on their router (or use a VPN such as Tailscale/ZeroTier) and friends join with the host's public IP. Unity Relay would remove that step but needs the project linked to a Unity account.
+- Code: `Assets/Scripts/Networking/` (`Net.cs` has the lobby, commands, snapshots and effect messages).

@@ -20,7 +20,7 @@ public static class Bootstrap
         }
         if (GameManager.I != null) return;
         if (GameObject.Find("Map") == null || GameObject.Find("Nexus_Blue") == null) return;
-        if (Session.Selected == null && Application.CanStreamedLevelBeLoaded("ChampSelect"))
+        if (!Net.Online && Session.Selected == null && Application.CanStreamedLevelBeLoaded("ChampSelect"))
         {
             SceneManager.LoadScene("ChampSelect"); // pressing Play in the Map scene goes via champion select first
             return;

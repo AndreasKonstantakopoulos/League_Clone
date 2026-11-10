@@ -24,9 +24,9 @@ public class Hud : MonoBehaviour
             if (npc != null && Unit.FlatDist(GameInput.MouseGround(), npc.position) < 1.5f) shopOpen = true; // click the shopkeeper
         }
 
-        if (pendingBuy != null) { c.Buy(pendingBuy); pendingBuy = null; }
-        if (pendingSell >= 0) { c.Sell(pendingSell); pendingSell = -1; }
-        if (pendingRank >= 0) { c.Rank(pendingRank); pendingRank = -1; }
+        if (pendingBuy != null) { c.RequestBuy(pendingBuy); pendingBuy = null; }
+        if (pendingSell >= 0) { c.RequestSell(pendingSell); pendingSell = -1; }
+        if (pendingRank >= 0) { c.RequestRank(pendingRank); pendingRank = -1; }
     }
 
     void OnGUI()
@@ -40,6 +40,8 @@ public class Hud : MonoBehaviour
         if (shopOpen && Champion.Local != null) DrawShop();
         GUI.Label(new Rect(10, 10, 600, 24), "Right-click: move / attack    Q W E R: abilities    B: recall    P: shop (buy at base only)");
         if (gm.State == MatchState.Over) DrawEnd(gm);
+        if (gm.State == MatchState.Waiting)
+            GUI.Box(new Rect(Screen.width / 2f - 150f, Screen.height / 2f - 20f, 300f, 40f), "Waiting for players...");
         DrawTooltip(); // last, so it sits on top
     }
 
@@ -103,7 +105,7 @@ public class Hud : MonoBehaviour
         if (gm.Jungle == null) return;
         var sb = new StringBuilder();
         foreach (var o in gm.Jungle.Objectives)
-            sb.AppendLine(o.Alive != null && o.Alive.Alive ? $"{o.Name}: alive" : $"{o.Name}: spawns in {Mathf.Max(0f, o.NextSpawn - gm.Clock):0}s");
+            sb.AppendLine(o.IsAlive ? $"{o.Name}: alive" : $"{o.Name}: spawns in {Mathf.Max(0f, o.NextSpawn - gm.Clock):0}s");
         if (c != null)
             foreach (var b in gm.Jungle.ActiveBuffs)
                 if (b.Team == c.U.Team && b.Until > Time.time) sb.AppendLine($"BUFF {b.Name}: {b.Until - Time.time:0}s left");
@@ -188,9 +190,11 @@ public class Hud : MonoBehaviour
     void DrawEnd(GameManager gm)
     {
         GUILayout.BeginArea(new Rect(Screen.width / 2 - 130, Screen.height / 2 - 90, 260, 180), GUI.skin.box);
-        GUILayout.Label(gm.Winner == Team.Blue ? "VICTORY" : "DEFEAT");
+        var me = Champion.Local;
+        bool won = me != null ? gm.Winner == me.U.Team : gm.Winner == Team.Blue; // your own team, not always blue
+        GUILayout.Label(won ? "VICTORY" : "DEFEAT");
         GUILayout.Label($"Match time {(int)(gm.Clock / 60f)}:{(int)(gm.Clock % 60f):00}");
-        if (GUILayout.Button("Rematch (same champion)", GUILayout.Height(36))) gm.Rematch();
+        if (!Net.Online && GUILayout.Button("Rematch (same champion)", GUILayout.Height(36))) gm.Rematch();
         if (GUILayout.Button("Champion select", GUILayout.Height(36))) gm.ToChampSelect();
         GUILayout.EndArea();
     }
