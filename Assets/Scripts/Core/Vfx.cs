@@ -262,7 +262,8 @@ public static class Vfx
         });
     }
 
-    public static Color TeamColor(Team t) => t == Team.Blue ? new Color(0.35f, 0.6f, 1f) : new Color(1f, 0.35f, 0.3f);
+    public static Color TeamColor(Team t) =>
+        t == Team.Blue ? new Color(0.35f, 0.6f, 1f) : t == Team.Red ? new Color(1f, 0.35f, 0.3f) : new Color(1f, 0.8f, 0.3f);
 
     // Tower bolt: a big glowing orb that flies to the target, then damages it and bursts on arrival.
     public static void TowerShot(Unit tower, Unit target, float damage)
@@ -364,7 +365,7 @@ public static class Vfx
         Object.Destroy(r.gameObject, 1f);
     }
 
-    static void Slam(Vector3 center, float radius, Color c, float p)
+    public static void Slam(Vector3 center, float radius, Color c, float p)
     {
         Vector3 g = At(center, 0.15f);
         Shockwave(g, radius, c, 0.5f, 0.55f);

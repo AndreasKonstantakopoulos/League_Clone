@@ -5,7 +5,7 @@ using UnityEngine;
 // Button clicks are queued and applied in Update, because changing controls mid-OnGUI breaks IMGUI layout.
 public class Hud : MonoBehaviour
 {
-    static readonly Color BlueCol = new Color(0.3f, 0.55f, 1f), RedCol = new Color(1f, 0.35f, 0.35f);
+    static readonly Color BlueCol = new Color(0.3f, 0.55f, 1f), RedCol = new Color(1f, 0.35f, 0.35f), NeutralCol = new Color(1f, 0.85f, 0.3f);
 
     GUIStyle tipStyle;
     bool shopOpen;
@@ -35,6 +35,7 @@ public class Hud : MonoBehaviour
         if (gm == null) return;
         DrawWorldBars();
         DrawShopLabel(gm);
+        DrawJungleInfo(gm);
         DrawBottom(gm);
         if (shopOpen && Champion.Local != null) DrawShop();
         GUI.Label(new Rect(10, 10, 600, 24), "Right-click: move / attack    Q W E R: abilities    B: recall    P: shop (buy at base only)");
@@ -85,14 +86,29 @@ public class Hud : MonoBehaviour
         foreach (var u in Unit.All)
         {
             if (!u.Alive) continue;
-            var p = cam.WorldToScreenPoint(u.transform.position + Vector3.up * (u.IsStructure ? 3.5f : 1.8f));
+            var p = cam.WorldToScreenPoint(u.transform.position + Vector3.up * (u.IsStructure ? 3.5f : 1.8f + (u.Kind == UnitKind.Monster ? u.Radius * 3f : 0f)));
             if (p.z <= 0f) continue;
-            float w = u.IsStructure ? 80f : u.Kind == UnitKind.Champion ? 60f : 36f;
+            float w = u.IsStructure ? 80f : u.Kind == UnitKind.Champion ? 60f : u.Kind == UnitKind.Monster ? Mathf.Clamp(u.Radius * 70f, 36f, 100f) : 36f;
             var r = new Rect(p.x - w / 2f, Screen.height - p.y, w, 5f);
-            Color col = u.Invulnerable ? Color.gray : u.Team == Team.Blue ? BlueCol : RedCol; // grey = protected
+            Color col = u.Invulnerable ? Color.gray : u.Team == Team.Neutral ? NeutralCol : u.Team == Team.Blue ? BlueCol : RedCol; // grey = protected
             Bar(r, u.Health / u.Total.Health, col);
             if (u.Shield > 0f) Bar(new Rect(r.x, r.y - 3f, w, 3f), u.Shield / u.Total.Health, Color.white);
         }
+    }
+
+    // Objective timers, your team's active buffs, and the "slain" banner.
+    void DrawJungleInfo(GameManager gm)
+    {
+        var c = Champion.Local;
+        if (gm.Jungle == null) return;
+        var sb = new StringBuilder();
+        foreach (var o in gm.Jungle.Objectives)
+            sb.AppendLine(o.Alive != null && o.Alive.Alive ? $"{o.Name}: alive" : $"{o.Name}: spawns in {Mathf.Max(0f, o.NextSpawn - gm.Clock):0}s");
+        if (c != null)
+            foreach (var b in gm.Jungle.ActiveBuffs)
+                if (b.Team == c.U.Team && b.Until > Time.time) sb.AppendLine($"BUFF {b.Name}: {b.Until - Time.time:0}s left");
+        GUI.Label(new Rect(10, 34, 460, 90), sb.ToString());
+        if (Time.time < gm.BannerUntil) GUI.Box(new Rect(Screen.width / 2f - 280f, 50f, 560f, 34f), gm.Banner);
     }
 
     void DrawShopLabel(GameManager gm)

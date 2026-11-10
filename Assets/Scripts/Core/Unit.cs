@@ -4,7 +4,7 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.AI;
 
-public enum UnitKind { Champion, Minion, Tower, Nexus }
+public enum UnitKind { Champion, Minion, Tower, Nexus, Monster }
 
 // Anything that has health and can be hit: champions, minions, towers, the Nexus.
 public class Unit : MonoBehaviour
@@ -19,6 +19,7 @@ public class Unit : MonoBehaviour
     public float Health, Mana, Shield, Radius = 0.5f;
     public float GoldBounty, XpBounty;
     public float LastDamaged = -999f;
+    public Unit LastAttacker; // who hit us last (jungle monsters use it to pick a target)
     public readonly List<Unit> Requires = new List<Unit>(); // all must be dead before this can be damaged
     public NavMeshAgent Agent;
 
@@ -86,6 +87,7 @@ public class Unit : MonoBehaviour
     {
         if (!Alive || amount <= 0f || Invulnerable) return;
         LastDamaged = Time.time; // interrupts recall
+        if (src != null) LastAttacker = src;
         if (type != DamageType.True)
             amount *= 100f / (100f + Mathf.Max(0f, type == DamageType.Physical ? Total.Armor : Total.MR));
         if (Shield > 0f)

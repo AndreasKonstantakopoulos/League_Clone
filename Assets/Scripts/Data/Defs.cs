@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 
-public enum Team { Blue, Red }
+public enum Team { Blue, Red, Neutral } // Neutral = jungle monsters
 public enum Role { Tank, Bruiser, Assassin, Marksman, Mage, Support }
 public enum Shape { Self, SelfArea, TargetEnemy, TargetAlly, PointArea, Skillshot }
 public enum EffectType { Damage, Heal, Shield, Stun, Root, Slow, Silence, Dash, Knockback, Pull, Buff }

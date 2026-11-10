@@ -24,3 +24,9 @@ Content (champions, abilities, items) is plain tables in `Assets/Scripts/Data/Co
 Hover an ability in the bottom bar for its shape, range, cooldown (with item cooldown reduction) and real damage/heal/shield numbers, split into base and the part that comes from AD/AP. Hover a shop item to see what it adds and how much extra each of your abilities gets from it.
 
 The map size is one constant (`K` in `Assets/Editor/BuildGreyboxMap.cs`, now 1.6 = 160x96 m). Change it and re-run `Tools > Build Greybox Map`.
+
+### Jungle (M7)
+
+- Four camps (a Brute and two Imps each) spawn at 15 s and respawn 60 s after being cleared. They pay gold and XP, and fight back if you get close or hit them. They walk home and heal if you pull them too far.
+- Two big objectives sit in the middle: the Ember Drake (spawns at 1:30, respawns every 3 min) and the Void Titan (spawns at 4:00, respawns every 5 min). Both stomp nearby enemies. Killing one gives your whole team a timed buff plus gold, and a banner announces it. Timers are on the top-left of the screen. All the timings are constants in `Rules` (`GameManager.cs`) and are short on purpose for testing.
+- Monster stats and the buffs are tables at the top of `Assets/Scripts/Objectives/JungleManager.cs`.

@@ -12,6 +12,9 @@ public static class Rules
     public const float FirstWave = 5f;
     public const float PassiveGold = 2f;    // gold per second
     public const int MeleePerWave = 3, CastersPerWave = 1;
+    // Jungle timings are short on purpose so objectives are easy to test; raise them for real matches.
+    public const float JungleFirstSpawn = 15f, CampRespawn = 60f;
+    public const float DrakeFirst = 90f, DrakeRespawn = 180f, TitanFirst = 240f, TitanRespawn = 300f;
 }
 
 // Wires the greybox map up at runtime (towers, Nexus, waypoints found by name), spawns waves, handles rewards and the win.
@@ -21,6 +24,11 @@ public class GameManager : MonoBehaviour
     public MatchState State = MatchState.Playing;
     public float Clock;
     public Team Winner;
+    public JungleManager Jungle;
+    public string Banner;
+    public float BannerUntil;
+
+    public void Announce(string text) { Banner = text; BannerUntil = Time.time + 6f; }
 
     static readonly string[] Lanes = { "Top", "Bottom" };
     readonly Dictionary<string, List<Vector3>> lanePaths = new Dictionary<string, List<Vector3>>(); // blue base -> red base
@@ -41,6 +49,7 @@ public class GameManager : MonoBehaviour
         else Debug.Log($"Content OK: {Content.Champions.Count} champions, {Content.Champions.Count * 4} abilities, {Content.Items.Count} items");
         SetupMap();
         gameObject.AddComponent<Hud>();
+        Jungle = gameObject.AddComponent<JungleManager>();
         Unit.AnyDied += OnDied;
     }
 
@@ -97,7 +106,7 @@ public class GameManager : MonoBehaviour
         return u;
     }
 
-    static Vector3 Snap(Vector3 p) =>
+    public static Vector3 Snap(Vector3 p) =>
         NavMesh.SamplePosition(p, out var hit, 5f, NavMesh.AllAreas) ? hit.position : p;
 
     public void StartMatch(ChampionDef def)
