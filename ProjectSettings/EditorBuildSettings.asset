@@ -4,6 +4,12 @@
 EditorBuildSettings:
   m_ObjectHideFlags: 0
   serializedVersion: 2
-  m_Scenes: []
+  m_Scenes:
+  - enabled: 1
+    path: Assets/Scenes/ChampSelect.unity
+    guid: 19fa202d9aa50e34c831547cfee280eb
+  - enabled: 1
+    path: Assets/Scenes/Map.unity
+    guid: dfde1f4d6f895774688763a57dafbc60
   m_configObjects: {}
   m_UseUCBPForAssetBundles: 0
