@@ -92,6 +92,8 @@ public class ChampSelect : MonoBehaviour
         var b = sel.Base;
         GUILayout.Label($"HP {b.Health:0}   Mana {b.Mana:0}   AD {b.AD:0}   Armor {b.Armor:0}   MR {b.MR:0}\n" +
                         $"Attack speed {b.AttackSpeed:0.00}   Move speed {b.MoveSpeed:0.0}   Attack range {sel.AttackRange:0.#}");
+        GUILayout.Space(6f);
+        GUILayout.Label($"Passive - {sel.Passive.Name}\n{sel.Passive.Desc}");
         for (int i = 0; i < 4; i++)
         {
             var a = sel.Abilities[i];

@@ -20,6 +20,14 @@ public class Champion : MonoBehaviour
     public float RespawnAt;
     public bool Mirror;      // client-side copy: shows what the host reports and sends commands instead of acting
     public ulong OwnerId;    // which connected player controls this champion
+    public int PassiveStacks; // for the HUD: stacks, or 0/1 for passives that are simply on or off
+
+    float lastAction, passiveTimer, lastHit;   // lastAction: last attack or cast (stealth passive); lastHit: last focused attack
+    Unit focusTarget;
+    bool spellCharged;
+    Renderer body;
+    Material normalMat, ghostMat;
+    bool isGhost;
 
     Unit target;
     bool moveOrder;
@@ -54,6 +62,8 @@ public class Champion : MonoBehaviour
         U.XpBounty = 150f;
         renders = GetComponentsInChildren<Renderer>();
         GetComponent<Renderer>().material.color = def.Color;
+        body = GetComponent<Renderer>();
+        normalMat = body.sharedMaterial;
         RecalcStats();
         All.Add(this);
         if (local) Local = this;
@@ -67,6 +77,8 @@ public class Champion : MonoBehaviour
         OwnerId = owner;
         Mirror = true;
         renders = GetComponentsInChildren<Renderer>();
+        body = GetComponent<Renderer>();
+        normalMat = body.sharedMaterial;
         if (!local) return;
         Local = this;
         var cam = Camera.main;
@@ -76,8 +88,9 @@ public class Champion : MonoBehaviour
     public void SetMirrorVisible(bool visible) { foreach (var r in renders) r.enabled = visible; }
 
     public void ApplyMirror(int level, int xp, int skillPoints, float gold, int[] ranks, float[] cdLeft, List<string> items,
-        bool dead, float respawnLeft, float recall)
+        bool dead, float respawnLeft, float recall, int passiveStacks)
     {
+        PassiveStacks = passiveStacks;
         Level = level; Xp = xp; SkillPoints = skillPoints; Gold = gold;
         for (int i = 0; i < 4; i++) { Ranks[i] = ranks[i]; CdEnd[i] = Time.time + cdLeft[i]; }
         Items.Clear();
@@ -109,6 +122,7 @@ public class Champion : MonoBehaviour
     void Update()
     {
         if (GameManager.I == null || GameManager.I.State != MatchState.Playing) return;
+        ApplyStealthLook();
         if (Mirror) // clients only forward input; the host does the rest
         {
             if (this == Local && U.Alive) HandleInput();
@@ -126,9 +140,118 @@ public class Champion : MonoBehaviour
             U.Heal(U.Total.Health * 0.1f * Time.deltaTime);
             U.Mana = Mathf.Min(U.Total.Mana, U.Mana + U.Total.Mana * 0.1f * Time.deltaTime);
         }
+        TickPassive(Time.deltaTime);
         if (this == Local) HandleInput();
         UpdateRecall();
         if (!Recalling) UpdateAttack();
+    }
+
+    // ---- passives (run on the simulating peer; values are shown on the HUD through PassiveStacks) ----
+    void NoteAction()
+    {
+        lastAction = Time.time;
+        U.Stealthed = false;
+    }
+
+    // Steady Aim: each consecutive hit on the same target adds a damage bonus; returns the bonus for this hit.
+    float FocusBonus(Unit t)
+    {
+        var p = Def.Passive;
+        if (p.Kind != PassiveKind.Focus) return 0f;
+        if (t != focusTarget || Time.time - lastHit > p.C) PassiveStacks = 0;
+        focusTarget = t;
+        lastHit = Time.time;
+        float bonus = p.A * PassiveStacks;
+        PassiveStacks = Mathf.Min(PassiveStacks + 1, (int)p.B);
+        return bonus;
+    }
+
+    void SetPassiveBonus(Stats s)
+    {
+        U.PassiveBonus = s;
+        U.Recalc();
+    }
+
+    void TickPassive(float dt)
+    {
+        var p = Def.Passive;
+        passiveTimer -= dt;
+        bool tick = passiveTimer <= 0f; // slower checks run 4 times a second
+        if (tick) passiveTimer = 0.25f;
+        switch (p.Kind)
+        {
+            case PassiveKind.Stonebound:
+            {
+                if (!tick) break;
+                int n = 0;
+                foreach (var e in Unit.All)
+                    if (e.Alive && !e.IsStructure && e.Team != U.Team && U.DistTo(e.transform.position) <= p.B) n++;
+                n = Mathf.Min(n, (int)p.C);
+                if (n == PassiveStacks) break;
+                PassiveStacks = n;
+                SetPassiveBonus(Fx.St(armor: p.A * n, mr: p.A * n));
+                break;
+            }
+            case PassiveKind.LastStand:
+            {
+                if (!tick) break;
+                int on = U.Health / U.Total.Health < p.A ? 1 : 0;
+                if (on == PassiveStacks) break;
+                PassiveStacks = on;
+                SetPassiveBonus(on == 1 ? p.Bonus + Fx.St(hpr: p.B * U.Total.Health) : new Stats());
+                break;
+            }
+            case PassiveKind.ShadowVeil:
+            {
+                // hidden after A quiet seconds; the first attack, cast or hit shows him again
+                bool hidden = Time.time - Mathf.Max(lastAction, U.LastDamaged) >= p.A;
+                if ((hidden ? 1 : 0) != PassiveStacks)
+                {
+                    PassiveStacks = hidden ? 1 : 0;
+                    SetPassiveBonus(hidden ? Fx.St(ms: p.C) : new Stats());
+                }
+                U.Stealthed = hidden;
+                if (hidden)
+                {
+                    U.Heal(U.Total.Health * p.B * dt);
+                    U.Mana = Mathf.Min(U.Total.Mana, U.Mana + U.Total.Mana * p.B * dt);
+                }
+                break;
+            }
+            case PassiveKind.Focus:
+                if (Time.time - lastHit > p.C) PassiveStacks = 0;
+                break;
+            case PassiveKind.Spellblade:
+                PassiveStacks = spellCharged ? 1 : 0;
+                break;
+            case PassiveKind.HealingAura:
+            {
+                if (!tick) break;
+                foreach (var e in Unit.All)
+                    if (e.Alive && e.Team == U.Team && !e.IsStructure && U.DistTo(e.transform.position) <= p.B)
+                        e.Heal(e.Total.Health * p.A * 0.25f);
+                PassiveStacks = 1;
+                break;
+            }
+        }
+    }
+
+    // Invisible champions: enemies see nothing, you and your team see a faint ghost. Also keeps dead champions hidden.
+    void ApplyStealthLook()
+    {
+        if (body == null) return;
+        var viewer = Local != null ? Local.U.Team : Team.Blue;
+        bool stealth = U.Stealthed && U.Alive;
+        bool ally = U.Team == viewer;
+        bool ghost = stealth && ally;
+        if (ghost != isGhost)
+        {
+            if (ghostMat == null)
+                ghostMat = new Material(Shader.Find("Sprites/Default")) { color = new Color(Def.Color.r, Def.Color.g, Def.Color.b, 0.35f) };
+            body.sharedMaterial = ghost ? ghostMat : normalMat;
+            isGhost = ghost;
+        }
+        body.enabled = U.Alive && !(stealth && !ally);
     }
 
     // B channels for RecallTime seconds, then teleports home. Moving, casting, taking damage or being stunned cancels it.
@@ -170,7 +293,7 @@ public class Champion : MonoBehaviour
         if (GameInput.RightClickDown)
         {
             var p = GameInput.MouseGround();
-            var e = Unit.NearestTo(p, 2f, u => u.Team != U.Team && !u.Invulnerable);
+            var e = Unit.NearestTo(p, 2f, u => u.Team != U.Team && !u.Invulnerable && !u.Stealthed);
             if (e != null) { if (remote) Net.SendAttack(e); else CmdAttack(e); }
             else { if (remote) Net.SendMove(p); else CmdMove(p); }
         }
@@ -186,7 +309,7 @@ public class Champion : MonoBehaviour
     public void CmdMove(Vector3 p) { Recalling = false; target = null; MoveTo(p); }
     public void CmdAttack(Unit t)
     {
-        if (t == null || t.Team == U.Team || t.Invulnerable) return;
+        if (t == null || t.Team == U.Team || t.Invulnerable || t.Stealthed) return;
         Recalling = false;
         target = t;
         moveOrder = false;
@@ -209,7 +332,7 @@ public class Champion : MonoBehaviour
     void UpdateAttack()
     {
         if (U.Stunned) return;
-        if (target != null && (!target.Alive || target.Invulnerable)) target = null;
+        if (target != null && (!target.Alive || target.Invulnerable || target.Stealthed)) target = null;
         if (target == null && !moveOrder) target = Unit.BestEnemy(U, Def.AttackRange, 6f, 3f); // idle: pick a fight
         if (target == null)
         {
@@ -224,7 +347,15 @@ public class Champion : MonoBehaviour
         if (Time.time >= nextAttack)
         {
             nextAttack = Time.time + 1f / Mathf.Max(0.1f, U.Total.AttackSpeed);
-            target.TakeDamage(U.Total.AD, DamageType.Physical, U); // shortcut: ranged attacks hit instantly, no projectile
+            NoteAction();
+            target.TakeDamage(U.Total.AD * (1f + FocusBonus(target)), DamageType.Physical, U); // shortcut: ranged attacks hit instantly, no projectile
+            if (spellCharged) // Arcane Charge: the first attack after a spell hits harder and refunds mana
+            {
+                var p = Def.Passive;
+                spellCharged = false;
+                target.TakeDamage(p.A + p.B * U.Total.AP, DamageType.Magic, U);
+                U.Mana = Mathf.Min(U.Total.Mana, U.Mana + p.C);
+            }
             Vfx.Auto(U, Def.Color, Def.AttackRange <= 3f, target);
         }
     }
@@ -245,7 +376,7 @@ public class Champion : MonoBehaviour
         Unit tgt = null;
         if (a.Shape == Shape.TargetEnemy)
         {
-            tgt = Unit.NearestTo(aim, 3f, u => u.Team != U.Team && !u.Invulnerable && U.DistTo(u.transform.position) <= a.Range);
+            tgt = Unit.NearestTo(aim, 3f, u => u.Team != U.Team && !u.Invulnerable && !u.Stealthed && U.DistTo(u.transform.position) <= a.Range);
             if (tgt == null) return false;
         }
         else if (a.Shape == Shape.TargetAlly)
@@ -263,6 +394,8 @@ public class Champion : MonoBehaviour
         if (a.Shape == Shape.PointArea && dist > a.Range) { point = pos + dir * a.Range; dist = a.Range; }
 
         Recalling = false;
+        NoteAction();
+        if (Def.Passive.Kind == PassiveKind.Spellblade) spellCharged = true;
         U.Mana -= a.Mana;
         CdEnd[slot] = Time.time + a.CooldownAt(rank, U.Total.CDR);
         FaceFlat(point);
@@ -429,6 +562,7 @@ public class Champion : MonoBehaviour
     void Respawn()
     {
         Dead = false;
+        lastAction = Time.time; // a stealth passive should not make you invisible the instant you respawn
         U.Agent.enabled = true;
         U.Agent.Warp(spawnPos);
         U.Health = U.Total.Health;

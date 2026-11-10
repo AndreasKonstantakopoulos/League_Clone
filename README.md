@@ -38,3 +38,8 @@ The map size is one constant (`K` in `Assets/Editor/BuildGreyboxMap.cs`, now 1.6
 - The host runs the whole game. Clients send commands (move, attack, cast, recall, buy, sell, rank) and mirror what the host sends: champions, minions, monsters, towers, health bars, objectives, buffs and all particle effects. Your own gold, cooldowns and items are sent privately to you.
 - The old **Direct** row (IP and port) still works for LAN play, but it shares the host's IP, so use the code for friends over the internet.
 - Code: `Assets/Scripts/Networking/` (`Net.cs` has the lobby, commands, snapshots and effect messages).
+
+### Passives
+
+Every champion has a passive, defined next to the abilities in `Content.cs` (`Pas(...)`) and run by `Champion.TickPassive`. They are shown in the champion-select screen and as the **P** slot left of Q in the HUD (lit while active, with stack count; hover for details).
+Orrin: Stonebound (armor and magic resist per nearby enemy). Kael: Undying Rage (below 40% health: damage, attack speed, regeneration). Vex: Shadow Veil (invisible after 3 quiet seconds, regenerates and moves faster; attacking, casting or taking damage reveals him; enemies cannot target him). Sera: Steady Aim (stacking damage on one target). Ilyra: Arcane Charge (next attack after a spell deals bonus magic damage and refunds mana). Mirel: Dawn's Grace (regenerates nearby allies).

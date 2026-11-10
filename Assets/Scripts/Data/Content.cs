@@ -53,6 +53,7 @@ public static class Content
             Name = "Orrin Ironwall", Role = Role.Tank, Color = new Color(0.55f, 0.6f, 0.7f), AttackRange = 2.2f,
             Base = St(hp: 680, mana: 280, ad: 58, armor: 38, mr: 36, aspd: 0.62f, ms: 5.8f, hpr: 1.5f, mpr: 1f),
             Growth = St(hp: 95, mana: 40, ad: 3.5f, armor: 4.5f, mr: 1.25f, aspd: 0.02f),
+            Passive = Pas(PassiveKind.Stonebound, "Stonebound", "Gains 4 armor and magic resist for every enemy within 7 m, up to 5 enemies.", a: 4f, b: 7f, c: 5f),
             Abilities = new[]
             {
                 // Hammers one enemy: shoves it back, then stuns.
@@ -74,6 +75,7 @@ public static class Content
             Name = "Kael Ashblade", Role = Role.Bruiser, Color = new Color(0.85f, 0.45f, 0.2f), AttackRange = 2.2f,
             Base = St(hp: 620, mana: 260, ad: 64, armor: 32, mr: 32, aspd: 0.67f, ms: 6f, hpr: 1.5f, mpr: 1f),
             Growth = St(hp: 90, mana: 35, ad: 3.8f, armor: 3.8f, mr: 1.25f, aspd: 0.025f),
+            Passive = Pas(PassiveKind.LastStand, "Undying Rage", "Below 40% health: +25 attack damage, +0.3 attack speed and regenerates 3% of max health per second.", a: 0.4f, b: 0.03f, bonus: St(ad: 25, aspd: 0.3f)),
             Abilities = new[]
             {
                 // Short sweeping cut that heals him for part of the damage.
@@ -95,6 +97,7 @@ public static class Content
             Name = "Vex Nightshade", Role = Role.Assassin, Color = new Color(0.45f, 0.2f, 0.6f), AttackRange = 2.2f,
             Base = St(hp: 560, mana: 250, ad: 62, armor: 27, mr: 32, aspd: 0.7f, ms: 6.4f, hpr: 1.3f, mpr: 1f),
             Growth = St(hp: 80, mana: 35, ad: 3.6f, armor: 3.5f, mr: 1.25f, aspd: 0.03f),
+            Passive = Pas(PassiveKind.ShadowVeil, "Shadow Veil", "After 3 s without attacking, casting or taking damage, turns invisible to enemies, moves faster and regenerates 4% of max health and mana per second. Any attack, cast or damage reveals him.", a: 3f, b: 0.04f, c: 1.5f),
             Abilities = new[]
             {
                 // Long thin cut that hits the first enemy in line.
@@ -116,6 +119,7 @@ public static class Content
             Name = "Sera Longshot", Role = Role.Marksman, Color = new Color(0.9f, 0.8f, 0.3f), AttackRange = 7.5f,
             Base = St(hp: 540, mana: 280, ad: 60, armor: 26, mr: 30, aspd: 0.68f, ms: 5.8f, hpr: 1.2f, mpr: 1f),
             Growth = St(hp: 78, mana: 35, ad: 3.4f, armor: 3.3f, mr: 1.25f, aspd: 0.03f),
+            Passive = Pas(PassiveKind.Focus, "Steady Aim", "Consecutive auto attacks on the same target (within 2.5 s) deal 8% more damage each, up to 5 times.", a: 0.08f, b: 5f, c: 2.5f),
             Abilities = new[]
             {
                 // Fast arrow that passes through everything in its path.
@@ -137,6 +141,7 @@ public static class Content
             Name = "Ilyra Stormcaller", Role = Role.Mage, Color = new Color(0.3f, 0.7f, 1f), AttackRange = 7f,
             Base = St(hp: 520, mana: 380, ad: 52, armor: 22, mr: 30, aspd: 0.62f, ms: 5.7f, hpr: 1.1f, mpr: 1.5f),
             Growth = St(hp: 75, mana: 50, ad: 3f, armor: 3f, mr: 1.25f, aspd: 0.02f),
+            Passive = Pas(PassiveKind.Spellblade, "Arcane Charge", "After casting an ability, her next auto attack deals 40 + 30% AP bonus magic damage and restores 15 mana.", a: 40f, b: 0.3f, c: 15f),
             Abilities = new[]
             {
                 // Orb of lightning that explodes on the first enemy it meets.
@@ -158,6 +163,7 @@ public static class Content
             Name = "Mirel Dawnwhisper", Role = Role.Support, Color = new Color(0.95f, 0.9f, 0.7f), AttackRange = 6f,
             Base = St(hp: 540, mana: 400, ad: 50, armor: 28, mr: 34, aspd: 0.62f, ms: 5.8f, hpr: 1.3f, mpr: 2f),
             Growth = St(hp: 80, mana: 55, ad: 2.8f, armor: 3.5f, mr: 1.25f, aspd: 0.02f),
+            Passive = Pas(PassiveKind.HealingAura, "Dawn's Grace", "Allies within 8 m, and herself, regenerate 1.2% of max health per second.", a: 0.012f, b: 8f),
             Abilities = new[]
             {
                 // Heals one ally (herself if nobody is near the cursor).
@@ -190,6 +196,7 @@ public static class Content
         foreach (var c in Champions)
         {
             if (c.Abilities.Length != 4) return $"{c.Name} must have 4 abilities";
+            if (c.Passive == null) return $"{c.Name} has no passive";
             foreach (var a in c.Abilities)
             {
                 if (!abilities.Add(a.Name)) return "Duplicate ability " + a.Name;

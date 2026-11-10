@@ -450,7 +450,7 @@ public static class Net
             w.WriteValueSafe((byte)(Mathf.Repeat(u.transform.eulerAngles.y, 360f) / 360f * 255f));
             w.WriteValueSafe(u.Health); w.WriteValueSafe(u.Total.Health); w.WriteValueSafe(u.Shield);
             bool champ = u.Kind == UnitKind.Champion;
-            w.WriteValueSafe((byte)((u.Alive ? 1 : 0) | (u.Invulnerable ? 2 : 0) | (champ ? 4 : 0)));
+            w.WriteValueSafe((byte)((u.Alive ? 1 : 0) | (u.Invulnerable ? 2 : 0) | (champ ? 4 : 0) | (u.Stealthed ? 8 : 0)));
             if (champ) { w.WriteValueSafe(u.Mana); w.WriteValueSafe(u.Total.Mana); } // champions only: their mana bar
         }
         var j = gm.Jungle;
@@ -475,6 +475,7 @@ public static class Net
             w.WriteValueSafe((byte)(ch.Dead ? 1 : 0));
             w.WriteValueSafe(Mathf.Max(0f, ch.RespawnAt - Time.time));
             w.WriteValueSafe(ch.Recalling ? ch.RecallProgress : -1f);
+            w.WriteValueSafe((byte)ch.PassiveStacks);
             w.WriteValueSafe(ch.U.Mana);
             var s = ch.U.Total;
             w.WriteValueSafe(s.Health); w.WriteValueSafe(s.Mana); w.WriteValueSafe(s.AD); w.WriteValueSafe(s.AP); w.WriteValueSafe(s.Armor);
@@ -536,6 +537,7 @@ public static class Net
             u.Shield = shield;
             if ((flags & 4) != 0) { u.Mana = mana; u.Total.Mana = maxMana; }
             u.MirrorInvulnerable = (flags & 2) != 0;
+            u.Stealthed = (flags & 8) != 0;
             var g = u.GetComponent<NetGhost>();
             if (g != null) g.SetTarget(new Vector3(x, y, z), yaw / 255f * 360f);
             var ch = u.GetComponent<Champion>();
@@ -579,7 +581,7 @@ public static class Net
         r.ReadValueSafe(out byte nItems);
         var items = new List<string>();
         for (int i = 0; i < nItems; i++) { r.ReadValueSafe(out string nm2); items.Add(nm2); }
-        r.ReadValueSafe(out byte dead); r.ReadValueSafe(out float respawnLeft); r.ReadValueSafe(out float recall); r.ReadValueSafe(out float mana);
+        r.ReadValueSafe(out byte dead); r.ReadValueSafe(out float respawnLeft); r.ReadValueSafe(out float recall); r.ReadValueSafe(out byte passive); r.ReadValueSafe(out float mana);
         var s = new Stats();
         r.ReadValueSafe(out s.Health); r.ReadValueSafe(out s.Mana); r.ReadValueSafe(out s.AD); r.ReadValueSafe(out s.AP); r.ReadValueSafe(out s.Armor);
         r.ReadValueSafe(out s.MR); r.ReadValueSafe(out s.AttackSpeed); r.ReadValueSafe(out s.MoveSpeed); r.ReadValueSafe(out s.HealthRegen);
@@ -588,7 +590,7 @@ public static class Net
         if (!IsClientOnly || ch == null) return;
         ch.U.Total = s;
         ch.U.Mana = mana;
-        ch.ApplyMirror(level, xp, sp, gold, ranks, cd, items, dead != 0, respawnLeft, recall);
+        ch.ApplyMirror(level, xp, sp, gold, ranks, cd, items, dead != 0, respawnLeft, recall, passive);
     }
 
     // ---------------- effects: host -> clients ----------------

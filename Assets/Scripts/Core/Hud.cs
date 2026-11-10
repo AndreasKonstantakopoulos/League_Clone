@@ -85,9 +85,10 @@ public class Hud : MonoBehaviour
     {
         var cam = Camera.main;
         if (cam == null) return;
+        var viewer = Champion.Local != null ? Champion.Local.U.Team : Team.Blue;
         foreach (var u in Unit.All)
         {
-            if (!u.Alive) continue;
+            if (!u.Alive || (u.Stealthed && u.Team != viewer)) continue; // invisible enemies show no bars
             var p = cam.WorldToScreenPoint(u.transform.position + Vector3.up * (u.IsStructure ? 3.5f : 1.8f + (u.Kind == UnitKind.Monster ? u.Radius * 3f : 0f)));
             if (p.z <= 0f) continue;
             float w = u.IsStructure ? 80f : u.Kind == UnitKind.Champion ? 60f : u.Kind == UnitKind.Monster ? Mathf.Clamp(u.Radius * 70f, 36f, 100f) : 36f;
@@ -181,7 +182,7 @@ public class Hud : MonoBehaviour
         var c = Champion.Local;
         if (c == null) return;
         EnsureStyles();
-        const float w = 720f, h = 140f;
+        const float w = 780f, h = 140f;
         float x = (Screen.width - w) / 2f, y = Screen.height - h - 8f;
         var u = c.U;
 
@@ -201,10 +202,11 @@ public class Hud : MonoBehaviour
         if (c.SkillPoints > 0)
             GUI.Label(new Rect(x + 96f, y + 2f, 280f, 18f), $"<b>{c.SkillPoints}</b> skill point{(c.SkillPoints > 1 ? "s" : "")} to spend", smallStyle);
 
-        for (int i = 0; i < 4; i++) DrawAbility(c, i, new Rect(x + 96f + i * 72f, y + 24f, 64f, 64f));
+        DrawPassive(c, new Rect(x + 96f, y + 36f, 40f, 40f));
+        for (int i = 0; i < 4; i++) DrawAbility(c, i, new Rect(x + 144f + i * 72f, y + 24f, 64f, 64f));
 
         // health, mana and xp
-        float bx = x + 96f, bw = 280f;
+        float bx = x + 96f, bw = 336f;
         LabeledBar(new Rect(bx, y + 94f, bw, 18f), u.Health / u.Total.Health, Color.Lerp(new Color(0.85f, 0.2f, 0.2f), new Color(0.3f, 0.8f, 0.35f), u.Health / u.Total.Health * 1.4f),
             $"{u.Health:0} / {u.Total.Health:0}");
         LabeledBar(new Rect(bx, y + 114f, bw, 14f), u.Total.Mana > 0f ? u.Mana / u.Total.Mana : 0f, new Color(0.25f, 0.55f, 1f), $"{u.Mana:0} / {u.Total.Mana:0}");
@@ -213,7 +215,7 @@ public class Hud : MonoBehaviour
         // items
         for (int i = 0; i < Champion.MaxItems; i++)
         {
-            var r = new Rect(x + 400f + (i % 3) * 46f, y + 16f + (i / 3) * 46f, 42f, 42f);
+            var r = new Rect(x + 452f + (i % 3) * 46f, y + 16f + (i / 3) * 46f, 42f, 42f);
             Fill(r, new Color(0.02f, 0.02f, 0.03f, 1f));
             if (i >= c.Items.Count) continue;
             var it = c.Items[i];
@@ -223,12 +225,12 @@ public class Hud : MonoBehaviour
             GUI.Label(r, Initials(it.Name), numStyle);
             GUI.Label(r, new GUIContent("", ItemTip(it, c)));
         }
-        GUI.Label(new Rect(x + 400f, y + 110f, 150f, 22f), $"<b>Gold {c.Gold:0}</b>", smallStyle);
+        GUI.Label(new Rect(x + 452f, y + 110f, 150f, 22f), $"<b>Gold {c.Gold:0}</b>", smallStyle);
 
         // stats and clock
         var t = u.Total;
         string clock = $"{(int)(gm.Clock / 60f)}:{(int)(gm.Clock % 60f):00}";
-        GUI.Label(new Rect(x + 560f, y + 16f, 150f, 110f),
+        GUI.Label(new Rect(x + 610f, y + 16f, 160f, 110f),
             $"AD {t.AD:0}   AP {t.AP:0}\nArmor {t.Armor:0}   MR {t.MR:0}\nAtk speed {t.AttackSpeed:0.00}\nMove {t.MoveSpeed:0.0}\nCooldown -{Mathf.Min(t.CDR, 0.4f) * 100f:0}%\nTime {clock}", smallStyle);
 
         if (c.Dead)
@@ -236,6 +238,18 @@ public class Hud : MonoBehaviour
             Fill(new Rect(x, y, w, h), new Color(0f, 0f, 0f, 0.6f));
             GUI.Label(new Rect(x, y, w, h), $"Respawning in {Mathf.Max(0f, c.RespawnAt - Time.time):0}s", cdStyle);
         }
+    }
+
+    // The passive: lit while it is doing something, with its stack count; hover for the description.
+    void DrawPassive(Champion c, Rect r)
+    {
+        var p = c.Def.Passive;
+        bool on = c.PassiveStacks > 0;
+        Fill(r, on ? new Color(1f, 0.85f, 0.3f) : new Color(0.02f, 0.02f, 0.03f, 1f));
+        Fill(Inset(r, 2f), on ? new Color(0.45f, 0.35f, 0.15f) : new Color(0.22f, 0.18f, 0.3f));
+        GUI.Label(r, "P", numStyle);
+        if (c.PassiveStacks > 1) GUI.Label(new Rect(r.x, r.yMax - 15f, r.width, 14f), c.PassiveStacks.ToString(), numStyle);
+        GUI.Label(r, new GUIContent("", $"<b>{p.Name}</b> (passive)\n{p.Desc}"));
     }
 
     // One ability slot: key, name, rank pips, cooldown sweep with seconds, a blue tint when you lack the mana, and a pulsing + when you can level it.

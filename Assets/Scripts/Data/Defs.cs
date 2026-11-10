@@ -9,6 +9,8 @@ public enum EffectType { Damage, Heal, Shield, Stun, Root, Slow, Silence, Dash, 
 public enum DamageType { Physical, Magic, True }
 public enum Affects { Enemies, Allies, Caster }
 // How an ability looks. Each style is its own particle recipe in Vfx.cs.
+// What kind of passive a champion has; the numbers A, B, C mean something different for each kind (see Champion.TickPassive).
+public enum PassiveKind { Stonebound, LastStand, ShadowVeil, Focus, Spellblade, HealingAura }
 public enum VfxStyle { Default, Impact, Slash, Whirl, Slam, Dome, Aura, Dash, Strike, Arrow, Bolt, Beam, Trap, Nova, Field, Storm, Heal, Dawn }
 
 [Serializable]
@@ -153,8 +155,17 @@ public class AbilityDef
     }
 }
 
+public class PassiveDef
+{
+    public string Name, Desc;
+    public PassiveKind Kind;
+    public float A, B, C;
+    public Stats Bonus; // flat stats some passives grant while active
+}
+
 public class ChampionDef
 {
+    public PassiveDef Passive;
     public string Name;
     public Role Role;
     public Color Color;
@@ -198,6 +209,9 @@ public static class Fx
     public static Effect Pull(float dist) => new Effect { Type = EffectType.Pull, Base = dist };
     public static Effect Buff(Stats s, float dur, Affects who = Affects.Caster) =>
         new Effect { Type = EffectType.Buff, Buff = s, Duration = dur, Who = who };
+
+    public static PassiveDef Pas(PassiveKind kind, string name, string desc, float a = 0, float b = 0, float c = 0, Stats bonus = null) =>
+        new PassiveDef { Kind = kind, Name = name, Desc = desc, A = a, B = b, C = c, Bonus = bonus };
 
     public static AbilityDef Ab(string name, Shape shape, float range, float radius, float cd, float mana, params Effect[] fx) =>
         new AbilityDef { Name = name, Shape = shape, Range = range, Radius = radius, Cooldown = cd, CdPerRank = 0.5f, Mana = mana, Effects = fx };

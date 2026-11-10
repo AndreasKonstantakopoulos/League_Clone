@@ -17,7 +17,7 @@ public class Monster : MonoBehaviour
         u = GetComponent<Unit>();
     }
 
-    bool InLeash(Unit t) => t != null && t.Alive && Unit.FlatDist(home, t.transform.position) <= d.Leash;
+    bool InLeash(Unit t) => t != null && t.Alive && !t.Stealthed && Unit.FlatDist(home, t.transform.position) <= d.Leash;
 
     void Update()
     {
@@ -29,7 +29,7 @@ public class Monster : MonoBehaviour
             if (Time.time - u.LastDamaged < 4f && InLeash(u.LastAttacker)) target = u.LastAttacker;
             else
             {
-                var c = Unit.NearestTo(transform.position, d.Aggro, x => x.Kind == UnitKind.Champion);
+                var c = Unit.NearestTo(transform.position, d.Aggro, x => x.Kind == UnitKind.Champion && !x.Stealthed);
                 if (InLeash(c)) target = c;
             }
         }

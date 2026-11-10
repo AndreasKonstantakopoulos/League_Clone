@@ -10,7 +10,7 @@ public class Tower : MonoBehaviour
 
     void Start() { u = GetComponent<Unit>(); }
 
-    bool InRange(Unit t) => t != null && t.Alive && u.DistTo(t.transform.position) - t.Radius <= Range;
+    bool InRange(Unit t) => t != null && t.Alive && !t.Stealthed && u.DistTo(t.transform.position) - t.Radius <= Range;
 
     void Update()
     {

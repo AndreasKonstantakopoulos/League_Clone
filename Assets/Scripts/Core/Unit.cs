@@ -20,6 +20,8 @@ public class Unit : MonoBehaviour
     public float GoldBounty, XpBounty;
     public float LastDamaged = -999f;
     public Unit LastAttacker; // who hit us last (jungle monsters use it to pick a target)
+    public bool Stealthed;                      // invisible to enemies: they cannot target it (set by a champion passive)
+    public Stats PassiveBonus = new Stats();    // stats granted by the champion's passive while it is active
     public int NetId;                           // identifies this unit across the network (assigned by the host)
     public bool Mirror, MirrorInvulnerable;     // Mirror = a client-side copy that only shows what the host reports
     public readonly List<Unit> Requires = new List<Unit>(); // all must be dead before this can be damaged
@@ -61,7 +63,7 @@ public class Unit : MonoBehaviour
 
     public void Recalc()
     {
-        var t = Base;
+        var t = Base + PassiveBonus;
         foreach (var b in buffs) t = t + b.S;
         Total = t;
     }
@@ -98,6 +100,7 @@ public class Unit : MonoBehaviour
     {
         if (!Alive || amount <= 0f || Invulnerable) return;
         LastDamaged = Time.time; // interrupts recall
+        Stealthed = false;       // taking damage reveals you
         if (src != null) LastAttacker = src;
         if (type != DamageType.True)
             amount *= 100f / (100f + Mathf.Max(0f, type == DamageType.Physical ? Total.Armor : Total.MR));
@@ -173,7 +176,7 @@ public class Unit : MonoBehaviour
         float bestScore = float.MaxValue;
         foreach (var u in All)
         {
-            if (u == self || !u.Alive || u.Team == self.Team || u.Invulnerable) continue;
+            if (u == self || !u.Alive || u.Team == self.Team || u.Invulnerable || u.Stealthed) continue; // invisible units cannot be picked
             float d = self.DistTo(u.transform.position) - u.Radius;
             if (d > range) continue;
             float s = d + (u.Kind == UnitKind.Champion ? champPenalty : 0f) + (u.IsStructure ? structPenalty : 0f);
