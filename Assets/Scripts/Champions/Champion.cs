@@ -292,7 +292,7 @@ public class Champion : MonoBehaviour
             body.sharedMaterial = ghost ? ghostMat : normalMat;
             isGhost = ghost;
         }
-        body.enabled = U.Alive && !(stealth && !ally);
+        body.enabled = U.Alive && Vision.Sees(viewer, U); // out of sight, or invisible to the other team, means not drawn
     }
 
     // B channels for RecallTime seconds, then teleports home. Moving, casting, taking damage or being stunned cancels it.

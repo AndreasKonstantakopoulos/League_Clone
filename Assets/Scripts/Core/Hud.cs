@@ -88,7 +88,7 @@ public class Hud : MonoBehaviour
         var viewer = Champion.Local != null ? Champion.Local.U.Team : Team.Blue;
         foreach (var u in Unit.All)
         {
-            if (!u.Alive || (u.Stealthed && u.Team != viewer)) continue; // invisible enemies show no bars
+            if (!u.Alive || !Vision.Sees(viewer, u)) continue; // units in the fog (or invisible) show no bars
             var p = cam.WorldToScreenPoint(u.transform.position + Vector3.up * (u.IsStructure ? 3.5f : 1.8f + (u.Kind == UnitKind.Monster ? u.Radius * 3f : 0f)));
             if (p.z <= 0f) continue;
             float w = u.IsStructure ? 80f : u.Kind == UnitKind.Champion ? 60f : u.Kind == UnitKind.Monster ? Mathf.Clamp(u.Radius * 70f, 36f, 100f) : 36f;

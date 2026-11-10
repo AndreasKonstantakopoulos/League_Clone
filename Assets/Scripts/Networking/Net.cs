@@ -214,14 +214,15 @@ public static class Net
     }
 
     // Host -> every other player (only those whose map has loaded when readyOnly is set).
-    static void ToClients(string name, System.Action<FastBufferWriter> fill, bool readyOnly)
+    // `to` limits the recipients by team (used so fog of war also hides information, not just pictures).
+    static void ToClients(string name, System.Action<FastBufferWriter> fill, bool readyOnly, System.Func<Team, bool> to = null)
     {
         if (nm == null || !IsHost) return;
         using (var w = new FastBufferWriter(256, Allocator.Temp, 1 << 20))
         {
             fill(w);
             foreach (var p in Players)
-                if (p.Id != MyId && (!readyOnly || p.Ready)) nm.CustomMessagingManager.SendNamedMessage(name, p.Id, w, Delivery);
+                if (p.Id != MyId && (!readyOnly || p.Ready) && (to == null || to(p.Team))) nm.CustomMessagingManager.SendNamedMessage(name, p.Id, w, Delivery);
         }
     }
 
@@ -404,9 +405,14 @@ public static class Net
             if (p.Id == MyId || !p.Ready) continue;
             if (!seen.TryGetValue(p.Id, out var set)) seen[p.Id] = set = new HashSet<int>();
             foreach (var u in Unit.All)
-                if (u.NetId != 0 && (u.Alive || u.Kind == UnitKind.Champion) && set.Add(u.NetId)) SendSpawn(p.Id, u);
+            {
+                if (u.NetId == 0 || !(u.Alive || u.Kind == UnitKind.Champion)) continue;
+                if (!Vision.Sees(p.Team, u)) { set.Remove(u.NetId); continue; } // in the fog: the client drops it, and it is re-sent when seen again
+                if (set.Add(u.NetId)) SendSpawn(p.Id, u);
+            }
         }
-        ToClients("snap", w => WriteSnapshot(w, gm), true);
+        foreach (Team team in new[] { Team.Blue, Team.Red }) // each team gets a snapshot of only what it can see
+            ToClients("snap", w => WriteSnapshot(w, gm, team), true, t => t == team);
         foreach (var p in Players)
             if (p.Id != MyId && p.Ready && champOf.TryGetValue(p.Id, out var ch) && ch != null) SendOwner(p.Id, ch);
     }
@@ -433,14 +439,14 @@ public static class Net
         });
     }
 
-    static void WriteSnapshot(FastBufferWriter w, GameManager gm)
+    static void WriteSnapshot(FastBufferWriter w, GameManager gm, Team viewer)
     {
         w.WriteValueSafe(gm.Clock);
         w.WriteValueSafe((byte)gm.State);
         w.WriteValueSafe((byte)gm.Winner);
         var list = new List<Unit>();
         foreach (var u in Unit.All)
-            if (u.NetId != 0 && (u.Alive || u.Kind == UnitKind.Champion)) list.Add(u);
+            if (u.NetId != 0 && (u.Alive || u.Kind == UnitKind.Champion) && Vision.Sees(viewer, u)) list.Add(u);
         w.WriteValueSafe(list.Count);
         foreach (var u in list)
         {
@@ -606,7 +612,7 @@ public static class Net
         {
             w.WriteValueSafe((byte)FxType.Auto); w.WriteValueSafe(caster.NetId); w.WriteValueSafe(target.NetId);
             w.WriteValueSafe((byte)(melee ? 1 : 0)); WriteColor(w, accent);
-        }, true);
+        }, true, t => Vision.Sees(t, caster) || Vision.Sees(t, target));
     }
 
     public static void FxCast(AbilityDef a, Unit caster, Vector3 pos, Vector3 dir, Vector3 point, float dist, List<Unit> hit)
@@ -621,25 +627,26 @@ public static class Net
             WriteV3(w, pos); WriteV3(w, dir); WriteV3(w, point); w.WriteValueSafe(dist);
             w.WriteValueSafe(hit.Count);
             foreach (var h in hit) w.WriteValueSafe(h.NetId);
-        }, true);
+        }, true, t => Vision.Sees(t, caster) || Vision.SeesPoint(t, point));
     }
 
     public static void FxTower(Unit tower, Unit target)
     {
         if (!IsHost || tower.NetId == 0 || target.NetId == 0) return;
-        ToClients("fx", w => { w.WriteValueSafe((byte)FxType.Tower); w.WriteValueSafe(tower.NetId); w.WriteValueSafe(target.NetId); }, true);
+        ToClients("fx", w => { w.WriteValueSafe((byte)FxType.Tower); w.WriteValueSafe(tower.NetId); w.WriteValueSafe(target.NetId); },
+            true, t => Vision.SeesPoint(t, tower.transform.position) || Vision.SeesPoint(t, target.transform.position));
     }
 
     public static void FxRing(Vector3 center, float radius, Color c)
     {
         if (!IsHost) return;
-        ToClients("fx", w => { w.WriteValueSafe((byte)FxType.Ring); WriteV3(w, center); w.WriteValueSafe(radius); WriteColor(w, c); }, true);
+        ToClients("fx", w => { w.WriteValueSafe((byte)FxType.Ring); WriteV3(w, center); w.WriteValueSafe(radius); WriteColor(w, c); }, true, t => Vision.SeesPoint(t, center));
     }
 
     public static void FxSlam(Vector3 center, float radius, Color c, float power)
     {
         if (!IsHost) return;
-        ToClients("fx", w => { w.WriteValueSafe((byte)FxType.Slam); WriteV3(w, center); w.WriteValueSafe(radius); WriteColor(w, c); w.WriteValueSafe(power); }, true);
+        ToClients("fx", w => { w.WriteValueSafe((byte)FxType.Slam); WriteV3(w, center); w.WriteValueSafe(radius); WriteColor(w, c); w.WriteValueSafe(power); }, true, t => Vision.SeesPoint(t, center));
     }
 
     public static void FxAnnounce(string text)

@@ -42,6 +42,10 @@ public class Unit : MonoBehaviour
     public bool CanCast => Alive && !Stunned && !Silenced;
     public bool Invulnerable => Mirror ? MirrorInvulnerable : Requires.Exists(u => u != null && u.Alive);
 
+    public Renderer Rend; // used by the fog to hide units that are out of sight
+
+    void Awake() { Rend = GetComponent<Renderer>(); }
+
     void OnEnable()
     {
         All.Add(this);

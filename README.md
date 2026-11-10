@@ -47,3 +47,7 @@ Orrin: Stonebound (armor and magic resist per nearby enemy). Kael: Undying Rage 
 ### Roster (M6)
 
 20 champions, 80 abilities, each with a passive and its own effect look: 4 tanks (Orrin Ironwall, Grum Boulderfist, Seren Wardenheart, Brannoch Stormshield), 3 bruisers (Kael Ashblade, Dara Bloodmoon, Hrolf Wavebreaker), 3 assassins (Vex Nightshade, Riku Silentstep, Zephyra Quickblade), 3 marksmen (Sera Longshot, Cassian Redhawk, Marek Emberstring), 4 mages (Ilyra Stormcaller, Nyx Emberweaver, Quillon Frostweaver, Vashti Voidcaller) and 3 supports (Mirel Dawnwhisper, Oren Lanternkeeper, Pia Thistledown). All of it is table data in `Assets/Scripts/Data/Content.cs`; passives are run by `Champion.TickPassive` (14 kinds, see `PassiveKind`).
+
+### Fog of war
+
+Your team only sees enemy champions, minions and jungle monsters near one of its own living units (champion 12 m, minion 8 m, tower 13 m, Nexus 11 m; monsters give no vision). Everything else is hidden, the ground you cannot see is darkened, and spell/attack effects out of sight are not drawn. Buildings are always shown. In online games the host also stops sending hidden enemies and their effects, so a modified client cannot see through the fog. Vision is a plain circle: walls do not block it yet. Rules are in `Assets/Scripts/Core/Vision.cs`, the overlay is `Fog.cs`.

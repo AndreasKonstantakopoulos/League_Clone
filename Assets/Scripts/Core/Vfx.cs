@@ -253,9 +253,17 @@ public static class Vfx
     }
 
     // Used by recall: a flat ring that stays put.
+    // Effects are only drawn where your team has vision.
+    static bool Visible(Vector3 p)
+    {
+        var me = Champion.Local;
+        return me == null || Vision.SeesPoint(me.U.Team, p);
+    }
+
     public static void Ring(Vector3 center, float radius, Color c)
     {
         if (Net.IsHost) Net.FxRing(center, radius, c);
+        if (!Visible(center)) return;
         Make(new Spec
         {
             Pos = At(center, 0.15f), Shape = ParticleSystemShapeType.Circle, ShapeRadius = radius, Edge = true, Flat = true,
@@ -267,6 +275,7 @@ public static class Vfx
     public static void MonsterSlam(Vector3 center, float radius, Color c, float power)
     {
         if (Net.IsHost) Net.FxSlam(center, radius, c, power);
+        if (!Visible(center)) return;
         Slam(center, radius, c, power);
         var me = Champion.Local;
         if (me != null && Unit.FlatDist(me.transform.position, center) < radius * 2.5f) CameraFollow.Shake(0.25f);
@@ -281,14 +290,16 @@ public static class Vfx
         if (Net.IsHost) Net.FxTower(tower, target);
         Color c = TeamColor(tower.Team);
         Vector3 from = At(tower.transform.position, 3.4f);
-        Glow(from, c, 2.2f, 0.2f); // muzzle flash
+        bool show = Visible(tower.transform.position) || Visible(target.transform.position); // the damage lands either way
+        if (show) Glow(from, c, 2.2f, 0.2f); // muzzle flash
         var r = VfxRunner.Spawn("VfxTowerShot", from);
-        Make(new Spec { Parent = r.transform, Count = 0, RatePerSec = 80f, Duration = 3f, ShapeRadius = 0.02f, SizeMin = 0.8f, SizeMax = 0.8f, LifeMin = 0.07f, LifeMax = 0.07f, EndScale = 1f, Color = c, Color2 = Hot(c) });
-        Make(new Spec { Parent = r.transform, Count = 0, RatePerSec = 80f, Duration = 3f, ShapeRadius = 0.02f, SizeMin = 0.35f, SizeMax = 0.35f, LifeMin = 0.07f, LifeMax = 0.07f, EndScale = 1f, Color = Color.white, Color2 = Color.white });
-        Make(new Spec { Parent = r.transform, Count = 0, RatePerDistance = 20f, Duration = 3f, ShapeRadius = 0.1f, SizeMin = 0.5f, SizeMax = 0.8f, LifeMin = 0.35f, LifeMax = 0.5f, EndScale = 0.1f, Color = c, Color2 = Hot(c) });
+        if (show) Make(new Spec { Parent = r.transform, Count = 0, RatePerSec = 80f, Duration = 3f, ShapeRadius = 0.02f, SizeMin = 0.8f, SizeMax = 0.8f, LifeMin = 0.07f, LifeMax = 0.07f, EndScale = 1f, Color = c, Color2 = Hot(c) });
+        if (show) Make(new Spec { Parent = r.transform, Count = 0, RatePerSec = 80f, Duration = 3f, ShapeRadius = 0.02f, SizeMin = 0.35f, SizeMax = 0.35f, LifeMin = 0.07f, LifeMax = 0.07f, EndScale = 1f, Color = Color.white, Color2 = Color.white });
+        if (show) Make(new Spec { Parent = r.transform, Count = 0, RatePerDistance = 20f, Duration = 3f, ShapeRadius = 0.1f, SizeMin = 0.5f, SizeMax = 0.8f, LifeMin = 0.35f, LifeMax = 0.5f, EndScale = 0.1f, Color = c, Color2 = Hot(c) });
         r.Homing(target, 22f, Vector3.up, () =>
         {
             if (!Net.IsClientOnly) target.TakeDamage(damage, DamageType.Physical, tower); // clients only show the bolt
+            if (!show) return;
             Vector3 body = At(target.transform.position, 1f);
             Glow(body, c, 2.4f, 0.2f);
             Sparks(body, Quaternion.identity, ParticleSystemShapeType.Sphere, 0f, 16, 5f, 11f, 0.3f, c, 0.14f);
@@ -302,6 +313,7 @@ public static class Vfx
     public static void Auto(Unit caster, Color accent, bool melee, Unit target)
     {
         if (Net.IsHost) Net.FxAuto(caster, accent, melee, target);
+        if (!Visible(caster.transform.position) && !Visible(target.transform.position)) return;
         Vector3 from = At(caster.transform.position, 1f), to = At(target.transform.position, 1f);
         Vector3 dir = (to - from).normalized;
         var pale = new Color(1f, 0.95f, 0.75f);
@@ -314,6 +326,7 @@ public static class Vfx
     public static void Cast(AbilityDef a, Unit caster, Color accent, Vector3 pos, Vector3 dir, Vector3 point, float dist, List<Unit> hit, bool shake)
     {
         if (Net.IsHost) Net.FxCast(a, caster, pos, dir, point, dist, hit);
+        if (!Visible(pos) && !Visible(point)) return;
         Color c = a.Tint ?? ColorOf(a);
         float p = a.Power;
         Vector3 chest = At(pos, 1f);
