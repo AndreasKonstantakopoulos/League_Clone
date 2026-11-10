@@ -13,15 +13,16 @@ public class Hud : MonoBehaviour
     ItemDef pendingBuy;
     int pendingSell = -1, pendingRank = -1;
 
-    static bool AtBase(Champion c) =>
-        !c.Dead && c.U.DistTo(GameManager.I.SpawnOf(c.U.Team)) < 10f;
-
     void Update()
     {
         var c = Champion.Local;
         if (c == null) return;
-        if (GameInput.KeyDown('B')) shopOpen = !shopOpen;
-        if (shopOpen && !AtBase(c)) shopOpen = false;
+        if (GameInput.KeyDown('P')) shopOpen = !shopOpen; // browsing works anywhere; buying needs the base (checked in Champion)
+        if (GameInput.LeftClickDown && !shopOpen)
+        {
+            var npc = GameManager.I.ShopNpc(c.U.Team);
+            if (npc != null && Unit.FlatDist(GameInput.MouseGround(), npc.position) < 1.5f) shopOpen = true; // click the shopkeeper
+        }
 
         if (pendingBuy != null) { c.Buy(pendingBuy); pendingBuy = null; }
         if (pendingSell >= 0) { c.Sell(pendingSell); pendingSell = -1; }
@@ -33,9 +34,10 @@ public class Hud : MonoBehaviour
         var gm = GameManager.I;
         if (gm == null) return;
         DrawWorldBars();
+        DrawShopLabel(gm);
         DrawBottom(gm);
         if (shopOpen && Champion.Local != null) DrawShop();
-        GUI.Label(new Rect(10, 10, 600, 24), "Right-click: move / attack    Q W E R: abilities    B: shop (at your base)");
+        GUI.Label(new Rect(10, 10, 600, 24), "Right-click: move / attack    Q W E R: abilities    B: recall    P: shop (buy at base only)");
         if (gm.State == MatchState.Over) DrawEnd(gm);
         DrawTooltip(); // last, so it sits on top
     }
@@ -93,6 +95,15 @@ public class Hud : MonoBehaviour
         }
     }
 
+    void DrawShopLabel(GameManager gm)
+    {
+        var cam = Camera.main;
+        var c = Champion.Local;
+        if (cam == null || c == null) return;
+        var p = cam.WorldToScreenPoint(gm.ShopNpc(c.U.Team).position + Vector3.up * 1.6f);
+        if (p.z > 0f) GUI.Label(new Rect(p.x - 60f, Screen.height - p.y, 120f, 22f), "SHOP (click / P)");
+    }
+
     static void Bar(Rect r, float frac, Color c)
     {
         var old = GUI.color;
@@ -110,6 +121,11 @@ public class Hud : MonoBehaviour
         const float w = 640f, h = 170f;
         float x = (Screen.width - w) / 2f, y = Screen.height - h - 8f;
         Icons.Draw(new Rect(x - 64f, y + 4f, 58f, 58f), c.Def);
+        if (c.Recalling)
+        {
+            GUI.Label(new Rect(x + 170f, y - 38f, 300f, 20f), "Recalling... (move, cast or take damage to cancel)");
+            Bar(new Rect(x + 170f, y - 16f, 300f, 8f), c.RecallProgress, new Color(0.6f, 0.85f, 1f));
+        }
         GUILayout.BeginArea(new Rect(x, y, w, h), GUI.skin.box);
         string clock = $"{(int)(gm.Clock / 60f)}:{(int)(gm.Clock % 60f):00}";
         GUILayout.Label($"{c.Def.Name}  Lv {c.Level}   HP {c.U.Health:0}/{c.U.Total.Health:0}   MP {c.U.Mana:0}/{c.U.Total.Mana:0}   Gold {c.Gold:0}   XP {c.Xp}/{c.XpToNext}   {clock}");
@@ -135,7 +151,8 @@ public class Hud : MonoBehaviour
     {
         var c = Champion.Local;
         GUILayout.BeginArea(new Rect(20, 40, 400, Screen.height - 240), GUI.skin.box);
-        GUILayout.Label($"Shop   Gold {c.Gold:0}   (B to close)");
+        GUILayout.Label($"Shop   Gold {c.Gold:0}   (P to close)");
+        GUILayout.Label(c.AtBase ? "At base: you can buy and sell." : "Not at base: browse only. Press B to recall, then buy.");
         scroll = GUILayout.BeginScrollView(scroll);
         foreach (var it in Content.Items)
         {

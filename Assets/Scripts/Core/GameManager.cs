@@ -28,7 +28,10 @@ public class GameManager : MonoBehaviour
     readonly Transform[] spawn = new Transform[2];
     float nextWave = Rules.FirstWave;
 
+    readonly Transform[] shopNpc = new Transform[2];
+
     public Vector3 SpawnOf(Team t) => spawn[(int)t].position;
+    public Transform ShopNpc(Team t) => shopNpc[(int)t];
 
     void Awake()
     {
@@ -58,6 +61,12 @@ public class GameManager : MonoBehaviour
         {
             string tn = team.ToString();
             spawn[(int)team] = Find($"Spawn_{tn}").transform;
+            var npc = GameObject.CreatePrimitive(PrimitiveType.Capsule); // clickable shopkeeper standing on the shop pad
+            npc.name = $"ShopNpc_{tn}";
+            Destroy(npc.GetComponent<Collider>());
+            npc.transform.position = Find($"Shop_{tn}").transform.position + Vector3.up * 1.1f;
+            npc.GetComponent<Renderer>().material.color = new Color(1f, 0.85f, 0.2f);
+            shopNpc[(int)team] = npc.transform;
             nexus[(int)team] = MakeStructure(Find($"Nexus_{tn}"), team, UnitKind.Nexus, 3500f, 3f);
             foreach (var lane in Lanes)
             {

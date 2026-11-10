@@ -18,6 +18,7 @@ public class Unit : MonoBehaviour
     public Stats Total = new Stats();  // base + active buffs
     public float Health, Mana, Shield, Radius = 0.5f;
     public float GoldBounty, XpBounty;
+    public float LastDamaged = -999f;
     public readonly List<Unit> Requires = new List<Unit>(); // all must be dead before this can be damaged
     public NavMeshAgent Agent;
 
@@ -84,6 +85,7 @@ public class Unit : MonoBehaviour
     public void TakeDamage(float amount, DamageType type, Unit src)
     {
         if (!Alive || amount <= 0f || Invulnerable) return;
+        LastDamaged = Time.time; // interrupts recall
         if (type != DamageType.True)
             amount *= 100f / (100f + Mathf.Max(0f, type == DamageType.Physical ? Total.Armor : Total.MR));
         if (Shield > 0f)

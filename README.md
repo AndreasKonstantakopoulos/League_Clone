@@ -8,7 +8,7 @@ Open this folder with Unity 6 LTS in Unity Hub. Packages resolve on first open; 
 
 1. In Unity run `Tools > Build Greybox Map` (once; re-run to rebuild). Create the URP asset first if the map is pink.
 2. Open `Assets/Scenes/ChampSelect.unity` and press Play. Pick a champion and press Start (the match is the separate `Map` scene).
-3. Right-click: move / attack. Q W E R: abilities (aim with the mouse). `+ rank` buttons spend skill points. B: shop while standing at your base.
+3. Right-click: move / attack. Q W E R: abilities (aim with the mouse). `+ rank` buttons spend skill points. B: recall (6 s channel, cancelled by moving, casting or damage). P or click the gold shopkeeper at your base: open the shop anywhere, but buying and selling only work inside your base.
 4. Minions spawn every 20 s per lane. Destroy the outer then inner towers in a lane, then the Nexus.
 
 Content (champions, abilities, items) is plain tables in `Assets/Scripts/Data/Content.cs`.
@@ -21,3 +21,5 @@ Content (champions, abilities, items) is plain tables in `Assets/Scripts/Data/Co
 ### Tooltips
 
 Hover an ability in the bottom bar for its shape, range, cooldown (with item cooldown reduction) and real damage/heal/shield numbers, split into base and the part that comes from AD/AP. Hover a shop item to see what it adds and how much extra each of your abilities gets from it.
+
+The map size is one constant (`K` in `Assets/Editor/BuildGreyboxMap.cs`, now 1.6 = 160x96 m). Change it and re-run `Tools > Build Greybox Map`.

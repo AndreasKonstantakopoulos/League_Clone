@@ -25,7 +25,14 @@ public class Champion : MonoBehaviour
     Vector3 spawnPos;
     Renderer[] renders;
 
+    public const float BaseRadius = 14f, RecallTime = 6f;
+    public bool Recalling;
+    float recallStart, nextRecallFx;
+
     public int XpToNext => 100 + 40 * Level;
+    // Shopping and the healing fountain only work inside your own base.
+    public bool AtBase => !Dead && U.DistTo(GameManager.I.SpawnOf(U.Team)) < BaseRadius;
+    public float RecallProgress => Recalling ? Mathf.Clamp01((Time.time - recallStart) / RecallTime) : 0f;
 
     public void Init(ChampionDef def, Team team, Vector3 spawn, bool local)
     {
@@ -78,15 +85,53 @@ public class Champion : MonoBehaviour
             return;
         }
         if (!U.Alive) return;
+        if (AtBase) // fountain: fast regeneration at home
+        {
+            U.Heal(U.Total.Health * 0.1f * Time.deltaTime);
+            U.Mana = Mathf.Min(U.Total.Mana, U.Mana + U.Total.Mana * 0.1f * Time.deltaTime);
+        }
         if (this == Local) HandleInput();
-        UpdateAttack();
+        UpdateRecall();
+        if (!Recalling) UpdateAttack();
+    }
+
+    // B channels for RecallTime seconds, then teleports home. Moving, casting, taking damage or being stunned cancels it.
+    void StartRecall()
+    {
+        if (Recalling || AtBase || !U.CanCast) return;
+        Recalling = true;
+        recallStart = Time.time;
+        target = null;
+        moveOrder = false;
+        U.Halt();
+    }
+
+    void UpdateRecall()
+    {
+        if (!Recalling) return;
+        if (U.Stunned || U.LastDamaged > recallStart) { Recalling = false; return; }
+        if (Time.time >= recallStart + RecallTime)
+        {
+            Recalling = false;
+            Vfx.Ring(transform.position, 1.5f, new Color(0.6f, 0.85f, 1f));
+            U.Agent.Warp(spawnPos);
+            Vfx.Ring(transform.position, 1.5f, new Color(0.6f, 0.85f, 1f));
+            return;
+        }
+        if (Time.time >= nextRecallFx)
+        {
+            nextRecallFx = Time.time + 0.4f;
+            Vfx.Ring(transform.position, 1.2f, new Color(0.6f, 0.85f, 1f));
+        }
     }
 
     // ---- input ----
     void HandleInput()
     {
+        if (GameInput.KeyDown('B')) StartRecall();
         if (GameInput.RightClickDown)
         {
+            Recalling = false;
             var p = GameInput.MouseGround();
             var e = Unit.NearestTo(p, 2f, u => u.Team != U.Team && !u.Invulnerable);
             if (e != null) { target = e; moveOrder = false; }
@@ -159,6 +204,7 @@ public class Champion : MonoBehaviour
         dir = dist > 0.01f ? dir / dist : transform.forward;
         if (a.Shape == Shape.PointArea && dist > a.Range) { point = pos + dir * a.Range; dist = a.Range; }
 
+        Recalling = false;
         U.Mana -= a.Mana;
         CdEnd[slot] = Time.time + a.CooldownAt(rank, U.Total.CDR);
         FaceFlat(point);
@@ -289,6 +335,7 @@ public class Champion : MonoBehaviour
 
     public bool Buy(ItemDef it)
     {
+        if (!AtBase) return false; // enforced here, not just in the UI
         int price = PriceOf(it);
         var after = new List<ItemDef>(Items);
         foreach (var c in it.Components)
@@ -307,7 +354,7 @@ public class Champion : MonoBehaviour
 
     public void Sell(int index)
     {
-        if (index < 0 || index >= Items.Count) return;
+        if (!AtBase || index < 0 || index >= Items.Count) return;
         Gold += Items[index].Cost * 0.7f;
         Items.RemoveAt(index);
         RecalcStats();
@@ -317,6 +364,7 @@ public class Champion : MonoBehaviour
     public void OnDeath()
     {
         Dead = true;
+        Recalling = false;
         target = null;
         moveOrder = false;
         RespawnAt = Time.time + 4f + 2f * Level;
