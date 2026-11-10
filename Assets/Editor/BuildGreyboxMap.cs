@@ -8,6 +8,7 @@ using UnityEngine;
 public static class BuildGreyboxMap
 {
     const string ScenePath = "Assets/Scenes/Map.unity";
+    const string NavDataPath = "Assets/Scenes/Map_NavMesh.asset";
     const string MatDir = "Assets/Data/Greybox";
     static readonly float[] LaneZ = { 20f, -20f };
     static readonly string[] LaneName = { "Top", "Bottom" };
@@ -46,9 +47,15 @@ public static class BuildGreyboxMap
             cam.transform.rotation = Quaternion.Euler(60, 0, 0);
         }
 
-        root.gameObject.AddComponent<NavMeshSurface>().BuildNavMesh();
+        var surface = root.gameObject.AddComponent<NavMeshSurface>();
+        surface.BuildNavMesh();
+        // The baked data must be a saved asset or it is lost when the scene reloads.
+        AssetDatabase.DeleteAsset(NavDataPath);
+        AssetDatabase.CreateAsset(surface.navMeshData, NavDataPath);
 
         EditorSceneManager.SaveScene(scene, ScenePath);
+        // Needed so the in-game "Play again" button can reload the scene.
+        EditorBuildSettings.scenes = new[] { new EditorBuildSettingsScene(ScenePath, true) };
         // Symmetry check: expected 8 towers, 2 nexuses, 4 camps, 2 pits, 18 waypoints.
         bool ok = towers == 8 && nexuses == 2 && camps == 4 && pits == 2 && waypoints == 18;
         Debug.Log($"Greybox map {(ok ? "OK" : "COUNT MISMATCH")}: towers={towers} nexuses={nexuses} camps={camps} pits={pits} waypoints={waypoints}");
