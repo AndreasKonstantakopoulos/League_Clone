@@ -449,7 +449,9 @@ public static class Net
             w.WriteValueSafe(p.x); w.WriteValueSafe(p.y); w.WriteValueSafe(p.z);
             w.WriteValueSafe((byte)(Mathf.Repeat(u.transform.eulerAngles.y, 360f) / 360f * 255f));
             w.WriteValueSafe(u.Health); w.WriteValueSafe(u.Total.Health); w.WriteValueSafe(u.Shield);
-            w.WriteValueSafe((byte)((u.Alive ? 1 : 0) | (u.Invulnerable ? 2 : 0)));
+            bool champ = u.Kind == UnitKind.Champion;
+            w.WriteValueSafe((byte)((u.Alive ? 1 : 0) | (u.Invulnerable ? 2 : 0) | (champ ? 4 : 0)));
+            if (champ) { w.WriteValueSafe(u.Mana); w.WriteValueSafe(u.Total.Mana); } // champions only: their mana bar
         }
         var j = gm.Jungle;
         w.WriteValueSafe(j != null ? j.Objectives.Count : 0);
@@ -524,12 +526,15 @@ public static class Net
             r.ReadValueSafe(out byte yaw);
             r.ReadValueSafe(out float hp); r.ReadValueSafe(out float maxHp); r.ReadValueSafe(out float shield);
             r.ReadValueSafe(out byte flags);
+            float mana = 0f, maxMana = 0f;
+            if ((flags & 4) != 0) { r.ReadValueSafe(out mana); r.ReadValueSafe(out maxMana); }
             present.Add(id);
             var u = Find(id);
             if (u == null) continue;
             u.Health = hp;
             u.Total.Health = maxHp;
             u.Shield = shield;
+            if ((flags & 4) != 0) { u.Mana = mana; u.Total.Mana = maxMana; }
             u.MirrorInvulnerable = (flags & 2) != 0;
             var g = u.GetComponent<NetGhost>();
             if (g != null) g.SetTarget(new Vector3(x, y, z), yaw / 255f * 360f);
