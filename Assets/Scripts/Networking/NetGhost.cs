@@ -17,7 +17,7 @@ public class NetGhost : MonoBehaviour
     void Update()
     {
         if (!has) return;
-        float k = 1f - Mathf.Exp(-15f * Time.deltaTime);
+        float k = 1f - Mathf.Exp(-20f * Time.deltaTime);
         if ((transform.position - target).sqrMagnitude > 36f) transform.position = target; // teleport: recall, respawn
         else transform.position = Vector3.Lerp(transform.position, target, k);
         transform.rotation = Quaternion.Slerp(transform.rotation, Quaternion.Euler(0f, yaw, 0f), k);

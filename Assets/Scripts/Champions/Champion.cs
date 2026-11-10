@@ -330,13 +330,13 @@ public class Champion : MonoBehaviour
     void HandleInput()
     {
         bool remote = Net.IsClientOnly;
-        if (GameInput.KeyDown('B')) { if (remote) Net.SendRecall(); else CmdRecall(); }
+        if (GameInput.KeyDown('B')) { if (remote) { StopPrediction(); Net.SendRecall(); } else CmdRecall(); }
         if (GameInput.RightClickDown && !Hud.PointerOverUi) // clicks on the minimap, panel or shop must not move you
         {
             var p = GameInput.MouseGround();
             var e = Unit.NearestTo(p, 2f, u => u.Team != U.Team && !u.Invulnerable && Vision.Targetable(U.Team, u));
-            if (e != null) { if (remote) Net.SendAttack(e); else CmdAttack(e); }
-            else { if (remote) Net.SendMove(p); else CmdMove(p); }
+            if (e != null) { if (remote) { StopPrediction(); Net.SendAttack(e); } else CmdAttack(e); }
+            else RequestMove(p);
         }
         for (int i = 0; i < 4; i++)
             if (GameInput.KeyDown("QWER"[i]))
@@ -348,7 +348,59 @@ public class Champion : MonoBehaviour
 
     // Commands: run on the host for every champion. Clients are untrusted, so each one re-checks what it is asked to do.
     // Move order from anywhere (minimap): act directly, or ask the host.
-    public void RequestMove(Vector3 p) { if (Net.IsClientOnly) Net.SendMove(p); else CmdMove(p); }
+    public void RequestMove(Vector3 p)
+    {
+        if (!Net.IsClientOnly) { CmdMove(p); return; }
+        Net.SendMove(p);
+        PredictMove(p); // start walking right away instead of waiting a round trip for the host
+    }
+
+    // ---- client-side prediction of your own walking ----
+    // The client has the same navmesh, so it can walk your champion immediately and compare with the host's positions as they arrive.
+    // Only plain move orders are predicted; attacks, abilities and dashes still follow the host.
+    NavMeshAgent predAgent;
+    bool predicting;
+
+    void PredictMove(Vector3 p)
+    {
+        if (!Mirror || this != Local || !U.Alive) return;
+        if (!NavMesh.SamplePosition(p, out var dest, 4f, NavMesh.AllAreas)) return;
+        if (!predicting)
+        {
+            if (!NavMesh.SamplePosition(transform.position, out var here, 4f, NavMesh.AllAreas)) return;
+            if (predAgent == null)
+            {
+                predAgent = gameObject.AddComponent<NavMeshAgent>();
+                predAgent.baseOffset = 1f; // capsule pivot is its centre
+                predAgent.acceleration = 40f;
+                predAgent.angularSpeed = 600f;
+                predAgent.stoppingDistance = 0.1f;
+            }
+            GetComponent<NetGhost>().enabled = false; // the agent moves us now
+            predAgent.enabled = true;
+            predAgent.Warp(here.position);
+            predicting = true;
+        }
+        predAgent.speed = U.Total.MoveSpeed;
+        predAgent.SetDestination(dest.position);
+    }
+
+    public void StopPrediction()
+    {
+        if (!predicting) return;
+        predicting = false;
+        predAgent.enabled = false;
+        GetComponent<NetGhost>().enabled = true; // back to following the host's numbers
+    }
+
+    // Called for every snapshot: stop predicting once we arrive, or if we drifted far from where the host says we are
+    // (blocked, stunned, rooted or slowed), so the host always wins.
+    public void Reconcile(Vector3 hostPos)
+    {
+        if (!predicting) return;
+        bool arrived = !predAgent.pathPending && predAgent.remainingDistance <= predAgent.stoppingDistance + 0.2f;
+        if (!U.Alive || arrived || Unit.FlatDist(transform.position, hostPos) > 4f) StopPrediction();
+    }
     public void CmdMove(Vector3 p) { Recalling = false; target = null; MoveTo(p); }
     public void CmdAttack(Unit t)
     {

@@ -48,6 +48,7 @@ public class Hud : MonoBehaviour
         DrawJungleInfo(gm);
         DrawBottom(gm);
         if (shopOpen && Champion.Local != null) DrawShop();
+        if (Net.IsClientOnly) GUI.Label(new Rect(Screen.width - 130f, 10f, 120f, 22f), $"Ping {Net.PingMs()} ms"); // lets you tell network lag from a slow machine
         GUI.Label(new Rect(10, 10, 600, 24), "Right-click: move / attack    Q W E R: abilities    B: recall    P: shop (buy at base only)");
         if (gm.State == MatchState.Over) DrawEnd(gm);
         if (gm.State == MatchState.Waiting)

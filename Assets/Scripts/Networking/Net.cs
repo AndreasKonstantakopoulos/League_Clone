@@ -25,7 +25,7 @@ public static class Net
     public const ushort DefaultPort = 7777;
     public const int MaxPlayers = 6;
     const NetworkDelivery Delivery = NetworkDelivery.ReliableFragmentedSequenced;
-    const float SendInterval = 1f / 15f;
+    const float SendInterval = 1f / 30f; // updates per second to each client (was 15; more = less visible lag, more bandwidth)
 
     public static NetMode Mode = NetMode.Solo;
     public static bool Online => Mode != NetMode.Solo;
@@ -325,6 +325,13 @@ public static class Net
     public static void RegisterChampion(ulong owner, Champion c) { champOf[owner] = c; }
 
     // ---------------- commands: client -> host ----------------
+    // Round-trip time to the host in milliseconds (clients only), for the on-screen ping readout.
+    public static int PingMs()
+    {
+        if (nm == null || !IsClientOnly) return -1;
+        return (int)nm.NetworkConfig.NetworkTransport.GetCurrentRtt(NetworkManager.ServerClientId);
+    }
+
     public static void SendMove(Vector3 p) { ToHost("cmd", w => { w.WriteValueSafe((byte)Cmd.Move); w.WriteValueSafe(p.x); w.WriteValueSafe(p.z); }); }
     public static void SendAttack(Unit t) { ToHost("cmd", w => { w.WriteValueSafe((byte)Cmd.Attack); w.WriteValueSafe(t.NetId); }); }
     public static void SendCast(int slot, Vector3 aim) { ToHost("cmd", w => { w.WriteValueSafe((byte)Cmd.Cast); w.WriteValueSafe((byte)slot); w.WriteValueSafe(aim.x); w.WriteValueSafe(aim.z); }); }
@@ -547,7 +554,11 @@ public static class Net
             var g = u.GetComponent<NetGhost>();
             if (g != null) g.SetTarget(new Vector3(x, y, z), yaw / 255f * 360f);
             var ch = u.GetComponent<Champion>();
-            if (ch != null) ch.SetMirrorVisible((flags & 1) != 0);
+            if (ch != null)
+            {
+                ch.SetMirrorVisible((flags & 1) != 0);
+                if (ch == Champion.Local) ch.Reconcile(new Vector3(x, y, z)); // compare our predicted position with the host's
+            }
         }
         r.ReadValueSafe(out int objectives);
         var j = gm != null ? gm.Jungle : null;
