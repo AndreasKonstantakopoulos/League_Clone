@@ -262,13 +262,36 @@ public static class Vfx
         });
     }
 
+    public static Color TeamColor(Team t) => t == Team.Blue ? new Color(0.35f, 0.6f, 1f) : new Color(1f, 0.35f, 0.3f);
+
+    // Tower bolt: a big glowing orb that flies to the target, then damages it and bursts on arrival.
+    public static void TowerShot(Unit tower, Unit target, float damage)
+    {
+        Color c = TeamColor(tower.Team);
+        Vector3 from = At(tower.transform.position, 3.4f);
+        Glow(from, c, 2.2f, 0.2f); // muzzle flash
+        var r = VfxRunner.Spawn("VfxTowerShot", from);
+        Make(new Spec { Parent = r.transform, Count = 0, RatePerSec = 80f, Duration = 3f, ShapeRadius = 0.02f, SizeMin = 0.8f, SizeMax = 0.8f, LifeMin = 0.07f, LifeMax = 0.07f, EndScale = 1f, Color = c, Color2 = Hot(c) });
+        Make(new Spec { Parent = r.transform, Count = 0, RatePerSec = 80f, Duration = 3f, ShapeRadius = 0.02f, SizeMin = 0.35f, SizeMax = 0.35f, LifeMin = 0.07f, LifeMax = 0.07f, EndScale = 1f, Color = Color.white, Color2 = Color.white });
+        Make(new Spec { Parent = r.transform, Count = 0, RatePerDistance = 20f, Duration = 3f, ShapeRadius = 0.1f, SizeMin = 0.5f, SizeMax = 0.8f, LifeMin = 0.35f, LifeMax = 0.5f, EndScale = 0.1f, Color = c, Color2 = Hot(c) });
+        r.Homing(target, 22f, Vector3.up, () =>
+        {
+            target.TakeDamage(damage, DamageType.Physical, tower);
+            Vector3 body = At(target.transform.position, 1f);
+            Glow(body, c, 2.4f, 0.2f);
+            Sparks(body, Quaternion.identity, ParticleSystemShapeType.Sphere, 0f, 16, 5f, 11f, 0.3f, c, 0.14f);
+            Shockwave(At(target.transform.position, 0.15f), 2f, c, 0.3f, 0.3f);
+            if (target.Kind == UnitKind.Champion) CameraFollow.Shake(0.2f);
+        });
+    }
+
     // Auto attack: melee = a short slash, ranged = a small bolt. Deliberately small and pale next to abilities.
     public static void Auto(Unit caster, Color accent, bool melee, Unit target)
     {
         Vector3 from = At(caster.transform.position, 1f), to = At(target.transform.position, 1f);
         Vector3 dir = (to - from).normalized;
         var pale = new Color(1f, 0.95f, 0.75f);
-        if (melee) Sparks(from + dir * 0.8f, Quaternion.LookRotation(dir), ParticleSystemShapeType.Cone, 35f, 8, 8f, 12f, 0.18f, pale, 0.07f);
+        if (melee) Sparks(from + dir * 0.8f, Quaternion.LookRotation(dir), ParticleSystemShapeType.Cone, 35f, 8, 8f, 12f, 0.18f, Color.Lerp(pale, accent, 0.35f), 0.07f);
         else Projectile(from, dir, Vector3.Distance(from, to), 45f, Color.Lerp(pale, accent, 0.5f), 0.22f, 10f);
         Sparks(to, Quaternion.identity, ParticleSystemShapeType.Sphere, 0f, 5, 2f, 5f, 0.2f, pale, 0.08f);
     }

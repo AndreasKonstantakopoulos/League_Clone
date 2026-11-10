@@ -23,6 +23,27 @@ public class VfxRunner : MonoBehaviour
         }
     }
 
+    // Chases the target at `speed` and calls onHit when it gets there. Gives up if the target is destroyed or after 3 s.
+    public void Homing(Unit target, float speed, Vector3 aimOffset, Action onHit) { StartCoroutine(HomingRoutine(target, speed, aimOffset, onHit)); }
+
+    IEnumerator HomingRoutine(Unit target, float speed, Vector3 aimOffset, Action onHit)
+    {
+        for (float timeout = 3f; timeout > 0f && target != null; timeout -= Time.deltaTime)
+        {
+            Vector3 goal = target.transform.position + aimOffset;
+            transform.position = Vector3.MoveTowards(transform.position, goal, speed * Time.deltaTime);
+            if ((goal - transform.position).sqrMagnitude < 0.25f) { onHit(); break; }
+            yield return null;
+        }
+        // let the trail fade out instead of vanishing with the projectile
+        foreach (var ps in GetComponentsInChildren<ParticleSystem>())
+        {
+            ps.Stop();
+            ps.transform.SetParent(null);
+        }
+        Destroy(gameObject);
+    }
+
     // Fades the line out and thins it over the given time.
     public void FadeLine(LineRenderer lr, float seconds) { StartCoroutine(FadeRoutine(lr, seconds)); }
 

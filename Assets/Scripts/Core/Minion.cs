@@ -35,6 +35,7 @@ public class Minion : MonoBehaviour
             {
                 next = Time.time + 1f;
                 t.TakeDamage(u.Total.AD, DamageType.Physical, u);
+                Vfx.Auto(u, Vfx.TeamColor(u.Team), range < 3f, t); // team-coloured slash (melee) or bolt (caster)
             }
             return;
         }
