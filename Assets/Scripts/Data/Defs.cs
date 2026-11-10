@@ -8,6 +8,8 @@ public enum Shape { Self, SelfArea, TargetEnemy, TargetAlly, PointArea, Skillsho
 public enum EffectType { Damage, Heal, Shield, Stun, Root, Slow, Silence, Dash, Knockback, Pull, Buff }
 public enum DamageType { Physical, Magic, True }
 public enum Affects { Enemies, Allies, Caster }
+// How an ability looks. Each style is its own particle recipe in Vfx.cs.
+public enum VfxStyle { Default, Impact, Slash, Whirl, Slam, Dome, Aura, Dash, Strike, Arrow, Bolt, Beam, Trap, Nova, Field, Storm, Heal, Dawn }
 
 [Serializable]
 public class Stats
@@ -48,6 +50,13 @@ public class Effect
     public Affects Who = Affects.Enemies;
     public float Base, PerRank, AD, AP, Duration;
     public Stats Buff;
+    public float MissingHp; // damage grows by up to this fraction as the target's health drops
+    public float Vamp;      // fraction of damage dealt that heals the caster
+
+    public Effect Executes(float k) { MissingHp = k; return this; }
+    public Effect Vamps(float f) { Vamp = f; return this; }
+    string Extras() =>
+        (MissingHp > 0f ? $", up to +{MissingHp * 100f:0}% vs wounded" : "") + (Vamp > 0f ? $", heals you for {Vamp * 100f:0}% of it" : "");
 
     // Damage/heal/shield amount, slow fraction, or dash/knockback/pull distance.
     public float Amount(Unit caster, int rank) =>
@@ -65,7 +74,7 @@ public class Effect
         string text;
         switch (Type)
         {
-            case EffectType.Damage: text = $"{baseAmt + bonus:0} {DType} damage{detail}{perRank}"; break;
+            case EffectType.Damage: text = $"{baseAmt + bonus:0} {DType} damage{detail}{perRank}{Extras()}"; break;
             case EffectType.Heal: text = $"Heal {baseAmt + bonus:0}{detail}{perRank}"; break;
             case EffectType.Shield: text = $"Shield {baseAmt + bonus:0} for {Duration:0.#}s{detail}{perRank}"; break;
             default: text = Describe(); break;
@@ -80,7 +89,7 @@ public class Effect
     {
         switch (Type)
         {
-            case EffectType.Damage: return $"{Base:0}+{PerRank:0}/rank {DType} damage{Scaling()}";
+            case EffectType.Damage: return $"{Base:0}+{PerRank:0}/rank {DType} damage{Scaling()}{Extras()}";
             case EffectType.Heal:
             case EffectType.Shield: return $"{Type} {Base:0}+{PerRank:0}/rank{Scaling()}";
             case EffectType.Stun:
@@ -103,7 +112,11 @@ public class AbilityDef
     public bool Pierce;
     public int MaxRank = 5;
     public Effect[] Effects;
+    public VfxStyle Style;
+    public float Power = 0.4f; // 0..1: how big the effect is and how hard the camera shakes
+    public Color? Tint;        // overrides the damage-type colour for this ability
 
+    public AbilityDef Looks(VfxStyle style, float power, Color? tint = null) { Style = style; Power = power; Tint = tint; return this; }
     public AbilityDef Pierces() { Pierce = true; return this; }
     public AbilityDef Ult() { MaxRank = 3; CdPerRank = Cooldown * 0.1f; return this; }
     public float CooldownAt(int rank, float cdr) =>

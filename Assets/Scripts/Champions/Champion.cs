@@ -167,7 +167,7 @@ public class Champion : MonoBehaviour
         {
             nextAttack = Time.time + 1f / Mathf.Max(0.1f, U.Total.AttackSpeed);
             target.TakeDamage(U.Total.AD, DamageType.Physical, U); // shortcut: ranged attacks hit instantly, no projectile
-            Vfx.Hit(target.transform.position + Vector3.up);
+            Vfx.Auto(U, Def.Color, Def.AttackRange <= 3f, target);
         }
     }
 
@@ -234,17 +234,7 @@ public class Champion : MonoBehaviour
                 if (e.Who == Affects.Enemies ? t.Team != U.Team : t.Team == U.Team) Apply(e, amt, t);
         }
 
-        // particles: area ring / skillshot trail where it was cast, then a burst on everything it touched
-        var col = Vfx.ColorOf(a);
-        switch (a.Shape)
-        {
-            case Shape.Self: Vfx.Ring(pos, 1.5f, col); break;
-            case Shape.SelfArea: Vfx.Ring(pos, a.Radius, col); break;
-            case Shape.PointArea: Vfx.Ring(point, a.Radius, col); break;
-            case Shape.Skillshot: Vfx.Trail(pos, dir, a.Range, col); break;
-        }
-        foreach (var t in hit)
-            if (t != U) Vfx.Impact(t.transform.position + Vector3.up, col);
+        Vfx.Cast(a, U, Def.Color, pos, dir, point, dist, hit, this == Local);
         return true;
     }
 
@@ -276,7 +266,13 @@ public class Champion : MonoBehaviour
     {
         switch (e.Type)
         {
-            case EffectType.Damage: t.TakeDamage(amt, e.DType, U); break;
+            case EffectType.Damage:
+            {
+                float dmg = amt * (1f + e.MissingHp * (1f - t.Health / t.Total.Health)); // wounded targets take more
+                t.TakeDamage(dmg, e.DType, U);
+                if (e.Vamp > 0f) U.Heal(dmg * e.Vamp); // shortcut: heals from damage before armor, not after
+                break;
+            }
             case EffectType.Heal: t.Heal(amt); break;
             case EffectType.Shield: t.AddShield(amt, e.Duration); break;
             case EffectType.Stun: t.Stun(e.Duration); break;

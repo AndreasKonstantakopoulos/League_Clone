@@ -16,7 +16,8 @@ Content (champions, abilities, items) is plain tables in `Assets/Scripts/Data/Co
 ### Icons and effects
 
 - Champion icons are drawn in code (champion colour, role-coloured ring, initials). To use real art, put a PNG named exactly like the champion (e.g. `Orrin Ironwall.png`) in `Assets/Resources/Icons/`; it replaces the placeholder automatically.
-- Auto attacks spawn a few small pale sparks. Abilities spawn bigger bursts coloured by effect (orange physical, purple magic, green heal, cyan shield, yellow crowd control), plus rings for area abilities and trails for skillshots. See `Assets/Scripts/Core/Vfx.cs`.
+- Auto attacks are small and pale: a short slash for melee, a thin bolt for ranged. Abilities are bigger and coloured. Each ability picks a style with `.Looks(VfxStyle, power, tint)` in `Content.cs`: Slash, Whirl, Slam, Dome, Aura, Dash, Strike, Arrow, Bolt, Beam, Trap, Nova, Field, Storm, Heal, Dawn or Impact. `power` (0 to 1) scales the effect and the camera shake. The recipes are in `Assets/Scripts/Core/Vfx.cs`.
+- Hits also show what they did: stars over stunned targets, vines for roots, frost for slows, a purple ring for silence.
 
 ### Tooltips
 
