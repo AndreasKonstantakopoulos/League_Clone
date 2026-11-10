@@ -284,7 +284,7 @@ public class Champion : MonoBehaviour
         var viewer = Local != null ? Local.U.Team : Team.Blue;
         bool stealth = U.Stealthed && U.Alive;
         bool ally = U.Team == viewer;
-        bool ghost = stealth && ally;
+        bool ghost = stealth && Vision.Sees(viewer, U); // allies always, enemies only while a tower or the Nexus reveals them: drawn see-through
         if (ghost != isGhost)
         {
             if (ghostMat == null)
@@ -334,7 +334,7 @@ public class Champion : MonoBehaviour
         if (GameInput.RightClickDown)
         {
             var p = GameInput.MouseGround();
-            var e = Unit.NearestTo(p, 2f, u => u.Team != U.Team && !u.Invulnerable && !u.Stealthed);
+            var e = Unit.NearestTo(p, 2f, u => u.Team != U.Team && !u.Invulnerable && Vision.Targetable(U.Team, u));
             if (e != null) { if (remote) Net.SendAttack(e); else CmdAttack(e); }
             else { if (remote) Net.SendMove(p); else CmdMove(p); }
         }
@@ -350,7 +350,7 @@ public class Champion : MonoBehaviour
     public void CmdMove(Vector3 p) { Recalling = false; target = null; MoveTo(p); }
     public void CmdAttack(Unit t)
     {
-        if (t == null || t.Team == U.Team || t.Invulnerable || t.Stealthed) return;
+        if (t == null || t.Team == U.Team || t.Invulnerable || !Vision.Targetable(U.Team, t)) return;
         Recalling = false;
         target = t;
         moveOrder = false;
@@ -373,7 +373,7 @@ public class Champion : MonoBehaviour
     void UpdateAttack()
     {
         if (U.Stunned) return;
-        if (target != null && (!target.Alive || target.Invulnerable || target.Stealthed)) target = null;
+        if (target != null && (!target.Alive || target.Invulnerable || !Vision.Targetable(U.Team, target))) target = null;
         if (target == null && !moveOrder) target = Unit.BestEnemy(U, Def.AttackRange, 6f, 3f); // idle: pick a fight
         if (target == null)
         {
@@ -426,7 +426,7 @@ public class Champion : MonoBehaviour
         Unit tgt = null;
         if (a.Shape == Shape.TargetEnemy)
         {
-            tgt = Unit.NearestTo(aim, 3f, u => u.Team != U.Team && !u.Invulnerable && !u.Stealthed && U.DistTo(u.transform.position) <= a.Range);
+            tgt = Unit.NearestTo(aim, 3f, u => u.Team != U.Team && !u.Invulnerable && Vision.Targetable(U.Team, u) && U.DistTo(u.transform.position) <= a.Range);
             if (tgt == null) return false;
         }
         else if (a.Shape == Shape.TargetAlly)

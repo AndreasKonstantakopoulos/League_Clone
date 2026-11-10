@@ -127,6 +127,7 @@ public class GameManager : MonoBehaviour
             u.XpBounty = 200f;
             go.AddComponent<Tower>();
         }
+        else if (kind == UnitKind.Nexus) go.AddComponent<Tower>().Configure(11f, 150f, 1f); // the Nexus defends itself too
         return u;
     }
 

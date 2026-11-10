@@ -51,3 +51,7 @@ Orrin: Stonebound (armor and magic resist per nearby enemy). Kael: Undying Rage 
 ### Fog of war
 
 Only your own side gives vision: your champion (12 m), minions (8 m), towers (13 m) and Nexus (11 m). Anything else is hidden while it is outside that vision: enemy champions, minions, jungle monsters and enemy towers and Nexus, until you scout them. The ground you cannot see is darkened, and spell, attack and tower-shot effects out of sight are not drawn. Hidden buildings are not remembered once you move away: they disappear again. In online games the host also stops sending hidden units and their effects, so a modified client cannot see through the fog (enemy buildings are always sent, since a destroyed one must disappear for everyone, but the client only draws them in vision). Jungle walls block vision, except that standing close to a wall you can see a few metres past it (the walls are thin); the deep middle of the jungle stays dark until you walk in. The two distances are constants at the top of `Vision.cs`. Rules are in `Assets/Scripts/Core/Vision.cs`, the overlay is `Fog.cs`.
+
+### Detection and the Nexus
+
+Towers and the Nexus detect invisible champions within their vision range: the champion is drawn as a see-through ghost for the detecting team, can be targeted while revealed, and the structures shoot it. This works for every tower, including inner ones that cannot be attacked yet. The Nexus also fires at enemies near it (11 m, 150 damage a second). Tower and Nexus numbers: `Tower.Configure` and `GameManager.MakeStructure`.

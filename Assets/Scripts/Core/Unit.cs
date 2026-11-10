@@ -188,7 +188,7 @@ public class Unit : MonoBehaviour
         float bestScore = float.MaxValue;
         foreach (var u in All)
         {
-            if (u == self || !u.Alive || u.Team == self.Team || u.Invulnerable || u.Stealthed) continue; // invisible units cannot be picked
+            if (u == self || !u.Alive || u.Team == self.Team || u.Invulnerable || (u.Stealthed && !self.IsStructure && !Vision.Sees(self.Team, u))) continue; // invisible units cannot be picked unless revealed; towers and the Nexus see them
             float d = self.DistTo(u.transform.position) - u.Radius;
             if (d > range) continue;
             float s = d + (u.Kind == UnitKind.Champion ? champPenalty : 0f) + (u.IsStructure ? structPenalty : 0f);

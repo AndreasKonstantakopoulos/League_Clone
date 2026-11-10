@@ -13,6 +13,8 @@ public static class Vision
 
     // enemy units each team can see right now (index = Team.Blue / Team.Red), rebuilt ~10 times a second
     static readonly HashSet<Unit>[] seen = { new HashSet<Unit>(), new HashSet<Unit>() };
+    // invisible enemy champions standing in range of that team's towers or Nexus (they detect stealth, even inner towers that cannot be attacked yet)
+    static readonly HashSet<Unit>[] revealed = { new HashSet<Unit>(), new HashSet<Unit>() };
     static readonly List<Vector4> walls = new List<Vector4>(); // flat rectangles: x = minX, y = minZ, z = maxX, w = maxZ
 
     public static void SetWalls(IEnumerable<Bounds> bounds)
@@ -71,9 +73,13 @@ public static class Vision
     public static bool Sees(Team viewer, Unit u)
     {
         if (u.Team == viewer) return true;
-        if (u.Stealthed || viewer == Team.Neutral) return false;
+        if (viewer == Team.Neutral) return false;
+        if (u.Stealthed) return revealed[(int)viewer].Contains(u); // invisible: only if a tower or Nexus detects it
         return seen[(int)viewer].Contains(u);
     }
+
+    // Normal units are targetable when picked; invisible ones only while revealed.
+    public static bool Targetable(Team viewer, Unit u) { return !u.Stealthed || Sees(viewer, u); }
 
     // What the host may tell a team about: enemy buildings are always reported (a destroyed one must disappear for everyone,
     // and where they stand is no secret), but the client still draws them only while they are in vision.
@@ -94,9 +100,20 @@ public static class Vision
             var viewer = (Team)t;
             var set = seen[t];
             set.Clear();
+            revealed[t].Clear();
             foreach (var target in Unit.All)
             {
                 if (!target.Alive || target.Team == viewer) continue;
+                if (target.Stealthed)
+                {
+                    foreach (var s in Unit.All)
+                        if (s.Alive && s.IsStructure && s.Team == viewer && Unit.FlatDist(s.transform.position, target.transform.position) <= RadiusOf(s))
+                        {
+                            revealed[t].Add(target);
+                            break;
+                        }
+                    continue;
+                }
                 foreach (var s in Unit.All)
                     if (s.Alive && s.Team == viewer && CanSee(s.transform.position, RadiusOf(s), target.transform.position))
                     {
