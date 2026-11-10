@@ -20,6 +20,8 @@ public class Unit : MonoBehaviour
     public float GoldBounty, XpBounty;
     public float LastDamaged = -999f;
     public Unit LastAttacker; // who hit us last (jungle monsters use it to pick a target)
+    public float Thorns;                        // fraction of damage taken that is reflected back to the attacker (Thorns passive)
+    static bool reflecting;                     // stops two thorny units from reflecting at each other forever
     public bool Stealthed;                      // invisible to enemies: they cannot target it (set by a champion passive)
     public Stats PassiveBonus = new Stats();    // stats granted by the champion's passive while it is active
     public int NetId;                           // identifies this unit across the network (assigned by the host)
@@ -111,6 +113,12 @@ public class Unit : MonoBehaviour
             amount -= absorbed;
         }
         Health -= amount;
+        if (Thorns > 0f && src != null && src.Alive && !src.IsStructure && !reflecting)
+        {
+            reflecting = true;
+            src.TakeDamage(amount * Thorns, DamageType.True, this);
+            reflecting = false;
+        }
         if (Health <= 0f) { Health = 0f; Die(src); }
     }
 

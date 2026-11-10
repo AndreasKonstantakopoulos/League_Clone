@@ -43,3 +43,7 @@ The map size is one constant (`K` in `Assets/Editor/BuildGreyboxMap.cs`, now 1.6
 
 Every champion has a passive, defined next to the abilities in `Content.cs` (`Pas(...)`) and run by `Champion.TickPassive`. They are shown in the champion-select screen and as the **P** slot left of Q in the HUD (lit while active, with stack count; hover for details).
 Orrin: Stonebound (armor and magic resist per nearby enemy). Kael: Undying Rage (below 40% health: damage, attack speed, regeneration). Vex: Shadow Veil (invisible after 3 quiet seconds, regenerates and moves faster; attacking, casting or taking damage reveals him; enemies cannot target him). Sera: Steady Aim (stacking damage on one target). Ilyra: Arcane Charge (next attack after a spell deals bonus magic damage and refunds mana). Mirel: Dawn's Grace (regenerates nearby allies).
+
+### Roster (M6)
+
+20 champions, 80 abilities, each with a passive and its own effect look: 4 tanks (Orrin Ironwall, Grum Boulderfist, Seren Wardenheart, Brannoch Stormshield), 3 bruisers (Kael Ashblade, Dara Bloodmoon, Hrolf Wavebreaker), 3 assassins (Vex Nightshade, Riku Silentstep, Zephyra Quickblade), 3 marksmen (Sera Longshot, Cassian Redhawk, Marek Emberstring), 4 mages (Ilyra Stormcaller, Nyx Emberweaver, Quillon Frostweaver, Vashti Voidcaller) and 3 supports (Mirel Dawnwhisper, Oren Lanternkeeper, Pia Thistledown). All of it is table data in `Assets/Scripts/Data/Content.cs`; passives are run by `Champion.TickPassive` (14 kinds, see `PassiveKind`).

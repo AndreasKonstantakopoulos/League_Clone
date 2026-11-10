@@ -10,7 +10,7 @@ public enum DamageType { Physical, Magic, True }
 public enum Affects { Enemies, Allies, Caster }
 // How an ability looks. Each style is its own particle recipe in Vfx.cs.
 // What kind of passive a champion has; the numbers A, B, C mean something different for each kind (see Champion.TickPassive).
-public enum PassiveKind { Stonebound, LastStand, ShadowVeil, Focus, Spellblade, HealingAura }
+public enum PassiveKind { Stonebound, LastStand, ShadowVeil, Focus, Spellblade, HealingAura, Thorns, Aegis, Sprint, Lifesteal, Frenzy, Executioner, Wellspring, Spellrunner }
 public enum VfxStyle { Default, Impact, Slash, Whirl, Slam, Dome, Aura, Dash, Strike, Arrow, Bolt, Beam, Trap, Nova, Field, Storm, Heal, Dawn }
 
 [Serializable]

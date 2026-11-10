@@ -24,7 +24,8 @@ public class Champion : MonoBehaviour
 
     float lastAction, passiveTimer, lastHit;   // lastAction: last attack or cast (stealth passive); lastHit: last focused attack
     Unit focusTarget;
-    bool spellCharged;
+    bool spellCharged, aegisUsed;
+    float frenzyUntil, spellrunUntil;
     Renderer body;
     Material normalMat, ghostMat;
     bool isGhost;
@@ -58,6 +59,7 @@ public class Champion : MonoBehaviour
         agent.stoppingDistance = 0.1f;
         U = gameObject.AddComponent<Unit>();
         U.Init(team, UnitKind.Champion, def.Base, 0.5f);
+        U.Thorns = def.Passive.Kind == PassiveKind.Thorns ? def.Passive.A : 0f;
         U.GoldBounty = 300f;
         U.XpBounty = 150f;
         renders = GetComponentsInChildren<Renderer>();
@@ -153,10 +155,16 @@ public class Champion : MonoBehaviour
         U.Stealthed = false;
     }
 
-    // Steady Aim: each consecutive hit on the same target adds a damage bonus; returns the bonus for this hit.
-    float FocusBonus(Unit t)
+    // Bonus damage fraction for this auto attack: Steady Aim stacks, or Executioner against weak targets.
+    float AutoBonus(Unit t)
     {
         var p = Def.Passive;
+        if (p.Kind == PassiveKind.Executioner)
+        {
+            bool low = t.Health / t.Total.Health < p.B;
+            PassiveStacks = low ? 1 : 0;
+            return low ? p.A : 0f;
+        }
         if (p.Kind != PassiveKind.Focus) return 0f;
         if (t != focusTarget || Time.time - lastHit > p.C) PassiveStacks = 0;
         focusTarget = t;
@@ -221,6 +229,39 @@ public class Champion : MonoBehaviour
             case PassiveKind.Focus:
                 if (Time.time - lastHit > p.C) PassiveStacks = 0;
                 break;
+            case PassiveKind.Executioner:
+                if (Time.time - lastAction > 2f) PassiveStacks = 0;
+                break;
+            case PassiveKind.Thorns: // the reflection itself is in Unit.TakeDamage
+            case PassiveKind.Lifesteal: // applied when she attacks
+                PassiveStacks = 1;
+                break;
+            case PassiveKind.Wellspring:
+                U.Mana = Mathf.Min(U.Total.Mana, U.Mana + U.Total.Mana * p.A * dt);
+                PassiveStacks = 1;
+                break;
+            case PassiveKind.Spellrunner:
+                PassiveStacks = Time.time < spellrunUntil ? 1 : 0;
+                break;
+            case PassiveKind.Frenzy:
+                if (PassiveStacks > 0 && Time.time > frenzyUntil) { PassiveStacks = 0; SetPassiveBonus(new Stats()); }
+                break;
+            case PassiveKind.Sprint:
+            {
+                bool fast = Time.time - Mathf.Max(lastAction, U.LastDamaged) >= p.A;
+                if ((fast ? 1 : 0) == PassiveStacks) break;
+                PassiveStacks = fast ? 1 : 0;
+                SetPassiveBonus(fast ? Fx.St(ms: p.C) : new Stats());
+                break;
+            }
+            case PassiveKind.Aegis: // one shield per quiet spell, refreshed after the next fight
+            {
+                float quiet = Time.time - Mathf.Max(lastAction, U.LastDamaged);
+                if (quiet < 0.5f) aegisUsed = false;
+                else if (quiet >= p.A && !aegisUsed) { aegisUsed = true; U.AddShield(U.Total.Health * p.B, 600f); }
+                PassiveStacks = U.Shield > 0f ? 1 : 0;
+                break;
+            }
             case PassiveKind.Spellblade:
                 PassiveStacks = spellCharged ? 1 : 0;
                 break;
@@ -348,7 +389,16 @@ public class Champion : MonoBehaviour
         {
             nextAttack = Time.time + 1f / Mathf.Max(0.1f, U.Total.AttackSpeed);
             NoteAction();
-            target.TakeDamage(U.Total.AD * (1f + FocusBonus(target)), DamageType.Physical, U); // shortcut: ranged attacks hit instantly, no projectile
+            var pas = Def.Passive;
+            float dmg = U.Total.AD * (1f + AutoBonus(target));
+            target.TakeDamage(dmg, DamageType.Physical, U); // shortcut: ranged attacks hit instantly, no projectile
+            if (pas.Kind == PassiveKind.Lifesteal) U.Heal(dmg * pas.A); // shortcut: heals from damage before armor
+            else if (pas.Kind == PassiveKind.Frenzy)
+            {
+                PassiveStacks = Mathf.Min(PassiveStacks + 1, (int)pas.B);
+                frenzyUntil = Time.time + pas.C;
+                SetPassiveBonus(Fx.St(aspd: pas.A * PassiveStacks));
+            }
             if (spellCharged) // Arcane Charge: the first attack after a spell hits harder and refunds mana
             {
                 var p = Def.Passive;
@@ -396,6 +446,11 @@ public class Champion : MonoBehaviour
         Recalling = false;
         NoteAction();
         if (Def.Passive.Kind == PassiveKind.Spellblade) spellCharged = true;
+        else if (Def.Passive.Kind == PassiveKind.Spellrunner) // casting makes you faster for a moment
+        {
+            U.AddBuff(Fx.St(ms: Def.Passive.A), Def.Passive.B);
+            spellrunUntil = Time.time + Def.Passive.B;
+        }
         U.Mana -= a.Mana;
         CdEnd[slot] = Time.time + a.CooldownAt(rank, U.Total.CDR);
         FaceFlat(point);
