@@ -2,7 +2,8 @@ using System.Collections.Generic;
 using UnityEngine;
 
 // Fog of war rules: a team sees an enemy unit only while one of its own living units is close enough.
-// Own units and all buildings are always shown; invisible champions are never seen by the other team.
+// Only your own side (champions, minions, towers, Nexus) gives vision, and your own side is always shown.
+// Everything else, enemy buildings included, is hidden until one of your units gets close; invisible champions are never seen.
 // shortcut: vision is a plain circle, so walls do not block it. Add line of sight if that matters later.
 public static class Vision
 {
@@ -23,10 +24,14 @@ public static class Vision
 
     public static bool Sees(Team viewer, Unit u)
     {
-        if (u.Team == viewer || u.IsStructure) return true;
+        if (u.Team == viewer) return true;
         if (u.Stealthed || viewer == Team.Neutral) return false;
         return seen[(int)viewer].Contains(u);
     }
+
+    // What the host may tell a team about: enemy buildings are always reported (a destroyed one must disappear for everyone,
+    // and where they stand is no secret), but the client still draws them only while they are in vision.
+    public static bool Reports(Team viewer, Unit u) { return u.IsStructure || Sees(viewer, u); }
 
     // For effects, which have a place but no unit.
     public static bool SeesPoint(Team viewer, Vector3 p)
@@ -45,7 +50,7 @@ public static class Vision
             set.Clear();
             foreach (var target in Unit.All)
             {
-                if (!target.Alive || target.IsStructure || target.Team == viewer) continue;
+                if (!target.Alive || target.Team == viewer) continue;
                 foreach (var s in Unit.All)
                     if (s.Alive && s.Team == viewer && Unit.FlatDist(s.transform.position, target.transform.position) <= RadiusOf(s))
                     {

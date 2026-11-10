@@ -407,7 +407,7 @@ public static class Net
             foreach (var u in Unit.All)
             {
                 if (u.NetId == 0 || !(u.Alive || u.Kind == UnitKind.Champion)) continue;
-                if (!Vision.Sees(p.Team, u)) { set.Remove(u.NetId); continue; } // in the fog: the client drops it, and it is re-sent when seen again
+                if (!Vision.Reports(p.Team, u)) { set.Remove(u.NetId); continue; } // in the fog: the client drops it, and it is re-sent when seen again
                 if (set.Add(u.NetId)) SendSpawn(p.Id, u);
             }
         }
@@ -446,7 +446,7 @@ public static class Net
         w.WriteValueSafe((byte)gm.Winner);
         var list = new List<Unit>();
         foreach (var u in Unit.All)
-            if (u.NetId != 0 && (u.Alive || u.Kind == UnitKind.Champion) && Vision.Sees(viewer, u)) list.Add(u);
+            if (u.NetId != 0 && (u.Alive || u.Kind == UnitKind.Champion) && Vision.Reports(viewer, u)) list.Add(u);
         w.WriteValueSafe(list.Count);
         foreach (var u in list)
         {

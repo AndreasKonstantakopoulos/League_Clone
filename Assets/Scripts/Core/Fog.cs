@@ -11,6 +11,7 @@ public class Fog : MonoBehaviour
     int w, h;
     float cellX, cellZ, halfX, halfZ, next;
     Vector3 origin;
+    static readonly Team[] Teams = { Team.Blue, Team.Red };
 
     void Start()
     {
@@ -54,7 +55,15 @@ public class Fog : MonoBehaviour
         }
         // every frame, so a unit never flashes into view before the next refresh
         foreach (var u in Unit.All)
-            if ((u.Kind == UnitKind.Minion || u.Kind == UnitKind.Monster) && u.Rend != null) u.Rend.enabled = Vision.Sees(viewer, u);
+            if (u.Kind != UnitKind.Champion && u.Rend != null) u.Rend.enabled = Vision.Sees(viewer, u); // minions, monsters and buildings
+        var gm = GameManager.I;
+        if (gm == null) return;
+        foreach (var t in Teams) // the enemy shopkeeper stays hidden until you scout their base
+        {
+            var npc = gm.ShopNpc(t);
+            var r = npc != null ? npc.GetComponent<Renderer>() : null;
+            if (r != null) r.enabled = t == viewer || Vision.SeesPoint(viewer, npc.position);
+        }
     }
 
     // clear[] holds 1 where the team sees well and fades to 0 at the edge of each vision circle.
