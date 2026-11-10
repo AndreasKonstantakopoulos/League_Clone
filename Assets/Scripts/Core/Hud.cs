@@ -85,7 +85,7 @@ public class Hud : MonoBehaviour
         if (tipStyle == null)
             tipStyle = new GUIStyle(GUI.skin.box) { wordWrap = true, richText = true, alignment = TextAnchor.UpperLeft, padding = new RectOffset(8, 8, 6, 6) };
         var content = new GUIContent(GUI.tooltip);
-        const float w = 340f;
+        const float w = 400f;
         float h = tipStyle.CalcHeight(content, w);
         var m = Event.current.mousePosition;
         var r = new Rect(Mathf.Clamp(m.x + 16f, 4f, Screen.width - w - 4f), Mathf.Clamp(m.y - h - 8f, 4f, Screen.height - h - 4f), w, h);
@@ -289,7 +289,7 @@ public class Hud : MonoBehaviour
         }
         else if (c.U.Mana < a.Mana) Fill(Inset(r, 3f), new Color(0.1f, 0.2f, 0.9f, 0.5f));
 
-        GUI.Label(r, new GUIContent("", a.Tooltip(c.U, rank))); // hover tooltip
+        GUI.Label(r, new GUIContent("", a.Tooltip(c.U, rank, "QWER"[i]))); // hover tooltip
 
         if (!c.CanRank(i)) return;
         var old = GUI.color;

@@ -71,14 +71,18 @@ public class Effect
         float bonus = AD * caster.Total.AD + AP * caster.Total.AP;
         string from = AD > 0f && AP > 0f ? $"{AD * 100f:0}% AD and {AP * 100f:0}% AP"
                     : AD > 0f ? $"{AD * 100f:0}% AD" : $"{AP * 100f:0}% AP";
-        string detail = AD > 0f || AP > 0f ? $" [{baseAmt:0} base + {bonus:0} from {from}]" : "";
-        string perRank = PerRank > 0f ? $", +{PerRank:0} per rank" : "";
+        string detail = AD > 0f || AP > 0f ? $" <color=#9aa>({baseAmt:0} base + {bonus:0} from {from})</color>" : "";
         string text;
         switch (Type)
         {
-            case EffectType.Damage: text = $"{baseAmt + bonus:0} {DType} damage{detail}{perRank}{Extras()}"; break;
-            case EffectType.Heal: text = $"Heal {baseAmt + bonus:0}{detail}{perRank}"; break;
-            case EffectType.Shield: text = $"Shield {baseAmt + bonus:0} for {Duration:0.#}s{detail}{perRank}"; break;
+            case EffectType.Damage:
+            {
+                string col = DType == DamageType.Physical ? "#ff9a40" : DType == DamageType.Magic ? "#b57aff" : "#ffffff";
+                text = $"Deals <color={col}>{baseAmt + bonus:0}</color> {DType.ToString().ToLower()} damage{detail}{Extras()}";
+                break;
+            }
+            case EffectType.Heal: text = $"Heals <color=#6fe07a>{baseAmt + bonus:0}</color>{detail}"; break;
+            case EffectType.Shield: text = $"Shields <color=#6fd3ff>{baseAmt + bonus:0}</color> for {Duration:0.#}s{detail}"; break;
             default: text = Describe(); break;
         }
         return text + (Who == Affects.Caster ? " (self)" : Who == Affects.Allies ? " (allies)" : "");
@@ -125,7 +129,7 @@ public class AbilityDef
         Mathf.Max(1f, Cooldown - CdPerRank * (rank - 1)) * (1f - Mathf.Min(cdr, 0.4f));
 
     public string Describe() =>
-        $"{Shape}, range {Range:0.#}{(Radius > 0f ? $", radius {Radius:0.#}" : "")}, cooldown {Cooldown:0}s, {Mana:0} mana\n" +
+        $"{Brief()}\n{Shape}, range {Range:0.#}{(Radius > 0f ? $", radius {Radius:0.#}" : "")}, cooldown {Cooldown:0}s, {Mana:0} mana\n" +
         string.Join(", ", Array.ConvertAll(Effects, e => e.Describe()));
 
     string ShapeText()
@@ -141,17 +145,66 @@ public class AbilityDef
         }
     }
 
-    // Hover text with numbers for this caster, so stats from items are included.
-    public string Tooltip(Unit c, int rank)
+    // Hover text in the style of the genre: header, one-line summary, live numbers, then per-rank tables.
+    public string Tooltip(Unit c, int rank, char key = ' ')
     {
-        float cdr = Mathf.Min(c.Total.CDR, 0.4f);
-        string cd = $"{CooldownAt(Mathf.Max(1, rank), c.Total.CDR):0.0}s" + (cdr > 0f ? $" ({-cdr * 100f:0}% from items)" : "");
+        int r = Mathf.Max(1, rank);
         var sb = new System.Text.StringBuilder();
-        sb.Append($"<b>{Name}</b>  rank {rank}/{MaxRank}{(rank == 0 ? " (not learned, showing rank 1)" : "")}\n");
-        sb.Append($"{ShapeText()}, range {Range:0.#}{(Radius > 0f ? $", radius {Radius:0.#}" : "")}\n");
-        sb.Append($"Cooldown {cd}   Mana {Mana:0}\n");
-        foreach (var e in Effects) sb.Append("- ").Append(e.Describe(c, rank)).Append('\n');
+        sb.Append($"<b>{(key == ' ' ? "" : $"[{key}] ")}{Name}</b>   <color=#9aa>{(rank == 0 ? "not learned" : $"rank {rank}/{MaxRank}")}</color>\n");
+        sb.Append($"<color=#8fd3ff>{CooldownAt(r, c.Total.CDR):0.#}s</color> cooldown   <color=#7fa6ff>{Mana:0}</color> mana   <color=#9aa>{ShapeText()}, range {Range:0.#}{(Radius > 0f ? $", radius {Radius:0.#}" : "")}</color>\n");
+        sb.Append(Brief()).Append("\n\n");
+        foreach (var e in Effects) sb.Append(e.Describe(c, r)).Append('\n');
+        sb.Append('\n');
+        var main = Array.Find(Effects, e => e.Type == EffectType.Damage || e.Type == EffectType.Heal || e.Type == EffectType.Shield);
+        if (main != null)
+            sb.Append($"<color=#9aa>{(main.Type == EffectType.Damage ? "Damage" : main.Type == EffectType.Heal ? "Healing" : "Shield")}</color>   {PerRank(rank, k => (main.Base + main.PerRank * (k - 1)).ToString("0"))}\n");
+        sb.Append($"<color=#9aa>Cooldown</color>   {PerRank(rank, k => CooldownAt(k, c.Total.CDR).ToString("0.#"))}");
         return sb.ToString();
+    }
+
+    // [ a / b / c ] with the current rank highlighted.
+    string PerRank(int current, Func<int, string> value)
+    {
+        var parts = new string[MaxRank];
+        for (int k = 1; k <= MaxRank; k++) parts[k - 1] = k == current ? $"<b><color=#ffd24a>{value(k)}</color></b>" : value(k);
+        return "[ " + string.Join(" / ", parts) + " ]";
+    }
+
+    public string Desc; // one short sentence for tooltips
+    public AbilityDef Says(string text) { Desc = text; return this; }
+
+    // One brief sentence on what it does: the hand-written text, or one generated from its effects.
+    public string Brief()
+    {
+        if (!string.IsNullOrEmpty(Desc)) return Desc;
+        var verbs = new List<string>();
+        foreach (var e in Effects)
+            switch (e.Type)
+            {
+                case EffectType.Damage: verbs.Add("deals " + e.DType.ToString().ToLower() + " damage"); break;
+                case EffectType.Heal: verbs.Add("heals"); break;
+                case EffectType.Shield: verbs.Add("shields"); break;
+                case EffectType.Stun: verbs.Add("stuns"); break;
+                case EffectType.Root: verbs.Add("roots"); break;
+                case EffectType.Silence: verbs.Add("silences"); break;
+                case EffectType.Slow: verbs.Add("slows"); break;
+                case EffectType.Dash: verbs.Add("dashes forward"); break;
+                case EffectType.Knockback: verbs.Add("knocks back"); break;
+                case EffectType.Pull: verbs.Add("pulls in"); break;
+                default: verbs.Add("grants a bonus"); break;
+            }
+        string list = verbs.Count > 1 ? string.Join(", ", verbs.GetRange(0, verbs.Count - 1)) + " and " + verbs[verbs.Count - 1] : verbs[0];
+        string open;
+        switch (Shape)
+        {
+            case Shape.Self: open = "Self cast:"; break;
+            case Shape.SelfArea: open = "Around you,"; break;
+            case Shape.TargetEnemy: open = "On an enemy,"; break;
+            case Shape.TargetAlly: open = "On an ally,"; break;
+            case Shape.PointArea: open = "In a target area,"; break;
+            default: open = Pierce ? "A piercing skillshot that" : "A skillshot that"; break;
+        }
+        return open + " " + list + ".";
     }
 }
 

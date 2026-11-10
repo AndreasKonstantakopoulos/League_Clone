@@ -65,3 +65,7 @@ The minimap is in the bottom-right corner: it shows what you can see (fog includ
 ### Lag
 
 The host simulates everything, so a joining player normally sees everything about one round trip late. To hide that: your own walking is predicted on your machine (it walks right away on the same navmesh, and the host's position corrects it if you disagree), the host sends updates 30 times a second, and clients see a **Ping** readout top-right. If the ping is low but the game still stutters, that machine is the bottleneck (try lower graphics quality or a lower resolution); if the ping is high, the connection is. Attacks, abilities and dashes are not predicted yet.
+
+### Ability tooltips
+
+Hover an ability for: its key and name with the rank, cooldown, mana and range, a one-sentence summary of what it does, the live damage/heal/shield numbers (with the part that comes from your AD/AP), and per-rank tables with the current rank highlighted. The summary is written with `.Says("...")` in `Content.cs`; if an ability has none, one is generated from its effects.
