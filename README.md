@@ -58,6 +58,6 @@ Towers and the Nexus detect invisible champions within their vision range: the c
 
 ### Map layout and minimap
 
-Re-run `Tools > Build Greybox Map` to get the new layout: an oval field with the blue base at the left end and red at the right, two lanes curving along the top and bottom edges, and a jungle of walls and camps between them (the two big pits sit in the middle). The lane-side jungle walls have gaps as entrances. Everything is built from a few numbers at the top of `Assets/Editor/BuildGreyboxMap.cs`.
+Re-run `Tools > Build Greybox Map` to get the layout, which follows Twisted Treeline: a wide field mirrored left to right. Each base has its Nexus and an S-shaped ridge closing off its inner side, so it opens onto the two lanes. The top lane leaves the base, runs down and across under a big walled alcove at the top centre (where the Ember Drake pit sits). The bottom lane runs flat along the bottom edge. Between them is the jungle: a wall under the top lane, two diagonal walls, and a row of walls above the bottom lane, with the four camps and the Void Titan pit in the pocket between the diagonals. The lane and wall coordinates are listed at the top of `Assets/Editor/BuildGreyboxMap.cs`.
 
 The minimap is in the bottom-right corner: it shows what you can see (fog included), your champion with a white ring, and a white box for what your camera sees. Click it with the left or right mouse button and your champion walks there. Clicks on the minimap, the bottom panel and the shop no longer move your champion in the world.
