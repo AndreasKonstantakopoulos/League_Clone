@@ -30,27 +30,11 @@ public class Hud : MonoBehaviour
     {
         var gm = GameManager.I;
         if (gm == null) return;
-        if (gm.State == MatchState.Select) { DrawSelect(gm); return; }
         DrawWorldBars();
         DrawBottom(gm);
         if (shopOpen && Champion.Local != null) DrawShop();
         GUI.Label(new Rect(10, 10, 600, 24), "Right-click: move / attack    Q W E R: abilities    B: shop (at your base)");
         if (gm.State == MatchState.Over) DrawEnd(gm);
-    }
-
-    void DrawSelect(GameManager gm)
-    {
-        GUILayout.BeginArea(new Rect(Screen.width / 2 - 320, 30, 640, Screen.height - 60), GUI.skin.box);
-        GUILayout.Label("Choose your champion");
-        scroll = GUILayout.BeginScrollView(scroll);
-        foreach (var d in Content.Champions)
-        {
-            var a = d.Abilities;
-            string label = $"{d.Name}  [{d.Role}]\nQ {a[0].Name} | W {a[1].Name} | E {a[2].Name} | R {a[3].Name}";
-            if (GUILayout.Button(label, GUILayout.Height(54))) gm.StartMatch(d);
-        }
-        GUILayout.EndScrollView();
-        GUILayout.EndArea();
     }
 
     void DrawWorldBars()
@@ -85,7 +69,9 @@ public class Hud : MonoBehaviour
         var c = Champion.Local;
         if (c == null) return;
         const float w = 640f, h = 170f;
-        GUILayout.BeginArea(new Rect((Screen.width - w) / 2f, Screen.height - h - 8f, w, h), GUI.skin.box);
+        float x = (Screen.width - w) / 2f, y = Screen.height - h - 8f;
+        Icons.Draw(new Rect(x - 64f, y + 4f, 58f, 58f), c.Def);
+        GUILayout.BeginArea(new Rect(x, y, w, h), GUI.skin.box);
         string clock = $"{(int)(gm.Clock / 60f)}:{(int)(gm.Clock % 60f):00}";
         GUILayout.Label($"{c.Def.Name}  Lv {c.Level}   HP {c.U.Health:0}/{c.U.Total.Health:0}   MP {c.U.Mana:0}/{c.U.Total.Mana:0}   Gold {c.Gold:0}   XP {c.Xp}/{c.XpToNext}   {clock}");
         if (c.Dead) GUILayout.Label($"Respawning in {Mathf.Max(0f, c.RespawnAt - Time.time):0}s");
@@ -128,10 +114,11 @@ public class Hud : MonoBehaviour
 
     void DrawEnd(GameManager gm)
     {
-        GUILayout.BeginArea(new Rect(Screen.width / 2 - 130, Screen.height / 2 - 70, 260, 140), GUI.skin.box);
+        GUILayout.BeginArea(new Rect(Screen.width / 2 - 130, Screen.height / 2 - 90, 260, 180), GUI.skin.box);
         GUILayout.Label(gm.Winner == Team.Blue ? "VICTORY" : "DEFEAT");
         GUILayout.Label($"Match time {(int)(gm.Clock / 60f)}:{(int)(gm.Clock % 60f):00}");
-        if (GUILayout.Button("Play again", GUILayout.Height(40))) gm.Restart();
+        if (GUILayout.Button("Rematch (same champion)", GUILayout.Height(36))) gm.Rematch();
+        if (GUILayout.Button("Champion select", GUILayout.Height(36))) gm.ToChampSelect();
         GUILayout.EndArea();
     }
 }

@@ -4,7 +4,7 @@ using UnityEngine;
 using UnityEngine.AI;
 using UnityEngine.SceneManagement;
 
-public enum MatchState { Select, Playing, Over }
+public enum MatchState { Playing, Over }
 
 public static class Rules
 {
@@ -18,7 +18,7 @@ public static class Rules
 public class GameManager : MonoBehaviour
 {
     public static GameManager I;
-    public MatchState State = MatchState.Select;
+    public MatchState State = MatchState.Playing;
     public float Clock;
     public Team Winner;
 
@@ -46,6 +46,8 @@ public class GameManager : MonoBehaviour
         Unit.AnyDied -= OnDied;
         if (I == this) I = null;
     }
+
+    void Start() { StartMatch(Session.Selected ?? Content.Champions[0]); } // champion chosen in the ChampSelect scene
 
     static GameObject Find(string name) =>
         GameObject.Find(name) ?? throw new System.Exception($"Missing map object {name}. Run Tools > Build Greybox Map.");
@@ -172,5 +174,6 @@ public class GameManager : MonoBehaviour
         Winner = winner;
     }
 
-    public void Restart() { SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex); }
+    public void Rematch() { SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex); }
+    public void ToChampSelect() { SceneManager.LoadScene("ChampSelect"); }
 }

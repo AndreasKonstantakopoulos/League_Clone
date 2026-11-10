@@ -52,6 +52,27 @@ public class Effect
     // Damage/heal/shield amount, slow fraction, or dash/knockback/pull distance.
     public float Amount(Unit caster, int rank) =>
         Base + PerRank * (rank - 1) + AD * caster.Total.AD + AP * caster.Total.AP;
+
+    string Scaling() => (AD > 0f ? $" +{AD * 100f:0}% AD" : "") + (AP > 0f ? $" +{AP * 100f:0}% AP" : "");
+
+    // Short text for the champion-select screen.
+    public string Describe()
+    {
+        switch (Type)
+        {
+            case EffectType.Damage: return $"{Base:0}+{PerRank:0}/rank {DType} damage{Scaling()}";
+            case EffectType.Heal:
+            case EffectType.Shield: return $"{Type} {Base:0}+{PerRank:0}/rank{Scaling()}";
+            case EffectType.Stun:
+            case EffectType.Root:
+            case EffectType.Silence: return $"{Type} {Duration:0.#}s";
+            case EffectType.Slow: return $"Slow {Base * 100f:0}% for {Duration:0.#}s";
+            case EffectType.Dash:
+            case EffectType.Knockback:
+            case EffectType.Pull: return $"{Type} {Base:0.#}m";
+            default: return $"Buff ({Buff}) for {Duration:0.#}s";
+        }
+    }
 }
 
 public class AbilityDef
@@ -67,6 +88,10 @@ public class AbilityDef
     public AbilityDef Ult() { MaxRank = 3; CdPerRank = Cooldown * 0.1f; return this; }
     public float CooldownAt(int rank, float cdr) =>
         Mathf.Max(1f, Cooldown - CdPerRank * (rank - 1)) * (1f - Mathf.Min(cdr, 0.4f));
+
+    public string Describe() =>
+        $"{Shape}, range {Range:0.#}{(Radius > 0f ? $", radius {Radius:0.#}" : "")}, cooldown {Cooldown:0}s, {Mana:0} mana\n" +
+        string.Join(", ", Array.ConvertAll(Effects, e => e.Describe()));
 }
 
 public class ChampionDef
