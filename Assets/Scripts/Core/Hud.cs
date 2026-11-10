@@ -13,12 +13,22 @@ public class Hud : MonoBehaviour
     ItemDef pendingBuy;
     int pendingSell = -1, pendingRank = -1;
 
+    // True while the mouse is over the minimap, the bottom panel or the shop, so world clicks are ignored.
+    public static bool PointerOverUi;
+
     void Update()
     {
+        Vector2 m = GameInput.MousePos;
+        m.y = Screen.height - m.y; // mouse origin is bottom-left, GUI rects are top-left
+        const float pw = 780f, ph = 140f; // the bottom panel
+        PointerOverUi = Minimap.Area.Contains(m)
+            || new Rect((Screen.width - pw) / 2f, Screen.height - ph - 8f, pw, ph).Contains(m)
+            || (shopOpen && new Rect(20f, 40f, 400f, Screen.height - 240f).Contains(m));
+
         var c = Champion.Local;
         if (c == null) return;
         if (GameInput.KeyDown('P')) shopOpen = !shopOpen; // browsing works anywhere; buying needs the base (checked in Champion)
-        if (GameInput.LeftClickDown && !shopOpen)
+        if (GameInput.LeftClickDown && !shopOpen && !PointerOverUi)
         {
             var npc = GameManager.I.ShopNpc(c.U.Team);
             if (npc != null && Unit.FlatDist(GameInput.MouseGround(), npc.position) < 1.5f) shopOpen = true; // click the shopkeeper

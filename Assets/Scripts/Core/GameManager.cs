@@ -56,6 +56,7 @@ public class GameManager : MonoBehaviour
         gameObject.AddComponent<Hud>();
         Jungle = gameObject.AddComponent<JungleManager>();
         gameObject.AddComponent<Fog>();
+        gameObject.AddComponent<Minimap>();
         Unit.AnyDied += OnDied;
     }
 

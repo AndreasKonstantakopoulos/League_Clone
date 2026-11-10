@@ -4,37 +4,44 @@ using UnityEditor.SceneManagement;
 using UnityEngine;
 
 // Menu: Tools > Build Greybox Map. Rebuilds Assets/Scenes/Map.unity and ChampSelect.unity from scratch (overwrites them).
-// Layout: blue base on the left, red on the right, two lanes (top and bottom), jungle between.
-// Change K to resize the whole map (1 = 100x60 m, 1.6 = 160x96 m). Everything else scales with it.
+// Layout (like Twisted Treeline): an oval field inside a 160 x 96 m rectangle. Blue base at the left end, red at the right.
+// Two lanes curve along the top and bottom edges; between them is the jungle, a maze of walls with camps and the two big pits.
 public static class BuildGreyboxMap
 {
-    const float K = 1.6f;
+    const float K = 1.6f;                      // scales the base, shop and Nexus positions
+    const float HalfW = 80f, HalfD = 48f;      // the rectangle the oval sits in (this is the Ground object)
+    const float OvalA = 78f, OvalB = 46f;      // the oval playing field (semi-axes)
+    const float LaneA = 70f, LaneB = 36f;      // lane centre lines: a smaller oval inside it
+    const float RimA = 63f, RimB = 29f;        // the jungle wall that runs along the inside of each lane
     const string ScenePath = "Assets/Scenes/Map.unity";
     const string SelectScenePath = "Assets/Scenes/ChampSelect.unity";
     const string NavDataPath = "Assets/Scenes/Map_NavMesh.asset";
     const string MatDir = "Assets/Data/Greybox";
-    static readonly float[] LaneZ = { 20f * K, -20f * K };
     static readonly string[] LaneName = { "Top", "Bottom" };
-    static readonly string[] TeamName = { "Blue", "Red" }; // index 0 = side -1, index 1 = side +1
+    static readonly string[] TeamName = { "Blue", "Red" }; // index 0 = side -1 (left), index 1 = side +1 (right)
 
-    static Material ground, lane, blue, red;
+    static Material voidMat, floorMat, ground, lane, blue, red;
     static Transform root;
-    static int towers, nexuses, camps, pits, waypoints;
+    static Vector3[][] lanePts = new Vector3[2][];
+    static int towers, nexuses, camps, pits, waypoints, wallCount;
 
     [MenuItem("Tools/Build Greybox Map")]
     public static void Build()
     {
         if (!EditorSceneManager.SaveCurrentModifiedScenesIfUserWantsTo()) return;
         var scene = EditorSceneManager.NewScene(NewSceneSetup.DefaultGameObjects, NewSceneMode.Single);
-        towers = nexuses = camps = pits = waypoints = 0;
+        towers = nexuses = camps = pits = waypoints = wallCount = 0;
 
+        voidMat = Mat("Void", new Color(0.04f, 0.05f, 0.06f));
+        floorMat = Mat("Floor", new Color(0.2f, 0.21f, 0.18f));
         ground = Mat("Ground", new Color(0.25f, 0.27f, 0.25f));
         lane = Mat("Lane", new Color(0.55f, 0.55f, 0.5f));
         blue = Mat("Blue", new Color(0.2f, 0.4f, 0.9f));
         red = Mat("Red", new Color(0.9f, 0.25f, 0.25f));
 
         root = new GameObject("Map").transform;
-        Box("Ground", PrimitiveType.Cube, new Vector3(0, -0.5f, 0), new Vector3(100 * K, 1, 60 * K), ground);
+        // The Ground object keeps its name and size: the fog and the minimap measure the map from it.
+        Box("Ground", PrimitiveType.Cube, new Vector3(0, -0.5f, 0), new Vector3(2 * HalfW, 1, 2 * HalfD), voidMat);
 
         BuildBoundary();
         BuildLanes();
@@ -60,7 +67,7 @@ public static class BuildGreyboxMap
         BuildChampSelect(); // also registers both scenes in Build Settings, which scene loading needs
         // Symmetry check: expected 8 towers, 2 nexuses, 4 camps, 2 pits, 18 waypoints.
         bool ok = towers == 8 && nexuses == 2 && camps == 4 && pits == 2 && waypoints == 18;
-        Debug.Log($"Greybox map {(ok ? "OK" : "COUNT MISMATCH")} ({100 * K:0}x{60 * K:0} m): towers={towers} nexuses={nexuses} camps={camps} pits={pits} waypoints={waypoints}");
+        Debug.Log($"Greybox map {(ok ? "OK" : "COUNT MISMATCH")} ({2 * HalfW:0}x{2 * HalfD:0} m): towers={towers} nexuses={nexuses} camps={camps} pits={pits} waypoints={waypoints} walls={wallCount}");
     }
 
     // Separate scene for champion select. The runtime ChampSelect script adds the UI when it finds the marker object.
@@ -81,54 +88,97 @@ public static class BuildGreyboxMap
         };
     }
 
-    static void BuildBoundary()
+    // ---------- helpers ----------
+    // Point on an ellipse with semi-axes a (x) and b (z); angle in degrees from +x towards +z.
+    static Vector3 Ell(float a, float b, float deg)
     {
-        float hw = 50 * K, hd = 30 * K;
-        Box("Wall_N", PrimitiveType.Cube, new Vector3(0, 1.5f, hd + 0.5f), new Vector3(2 * hw + 2, 3, 1), ground);
-        Box("Wall_S", PrimitiveType.Cube, new Vector3(0, 1.5f, -hd - 0.5f), new Vector3(2 * hw + 2, 3, 1), ground);
-        Box("Wall_W", PrimitiveType.Cube, new Vector3(-hw - 0.5f, 1.5f, 0), new Vector3(1, 3, 2 * hd + 2), ground);
-        Box("Wall_E", PrimitiveType.Cube, new Vector3(hw + 0.5f, 1.5f, 0), new Vector3(1, 3, 2 * hd + 2), ground);
+        float r = deg * Mathf.Deg2Rad;
+        return new Vector3(a * Mathf.Cos(r), 0f, b * Mathf.Sin(r));
     }
 
+    // A box lying along the segment p -> q (rotated about Y so its long side follows the segment).
+    static GameObject Seg(string name, Vector3 p, Vector3 q, float height, float thick, Material mat, float centerY)
+    {
+        Vector3 d = q - p;
+        d.y = 0f;
+        var go = Box(name, PrimitiveType.Cube, new Vector3((p.x + q.x) / 2f, centerY, (p.z + q.z) / 2f),
+            new Vector3(d.magnitude + 0.3f, height, thick), mat);
+        go.transform.localRotation = Quaternion.Euler(0f, Mathf.Atan2(-d.z, d.x) * Mathf.Rad2Deg, 0f);
+        return go;
+    }
+
+    // ---------- map parts ----------
+    static void BuildBoundary()
+    {
+        Box("Wall_N", PrimitiveType.Cube, new Vector3(0, 1.5f, HalfD + 0.5f), new Vector3(2 * HalfW + 2, 3, 1), ground);
+        Box("Wall_S", PrimitiveType.Cube, new Vector3(0, 1.5f, -HalfD - 0.5f), new Vector3(2 * HalfW + 2, 3, 1), ground);
+        Box("Wall_W", PrimitiveType.Cube, new Vector3(-HalfW - 0.5f, 1.5f, 0), new Vector3(1, 3, 2 * HalfD + 2), ground);
+        Box("Wall_E", PrimitiveType.Cube, new Vector3(HalfW + 0.5f, 1.5f, 0), new Vector3(1, 3, 2 * HalfD + 2), ground);
+
+        // The floor is an oval; a ring of walls closes it, and everything outside is dark void nobody can reach.
+        Box("OvalFloor", PrimitiveType.Cylinder, new Vector3(0, 0.03f, 0), new Vector3(2 * OvalA, 0.03f, 2 * OvalB), floorMat);
+        const int n = 72;
+        for (int i = 0; i < n; i++)
+            Seg($"Wall_Ring_{i}", Ell(OvalA + 0.75f, OvalB + 0.75f, i * 360f / n), Ell(OvalA + 0.75f, OvalB + 0.75f, (i + 1) * 360f / n), 3f, 1.5f, ground, 1.5f);
+    }
+
+    // Two lanes that curve along the top and bottom of the oval, base to base, as 9 waypoints each.
     static void BuildLanes()
     {
         for (int i = 0; i < 2; i++)
         {
-            Box($"Lane_{LaneName[i]}", PrimitiveType.Cube, new Vector3(0, 0.05f, LaneZ[i]), new Vector3(90 * K, 0.1f, 8), lane);
-            // One shared ordered list, blue base -> red base. Red minions walk it in reverse.
+            var pts = new Vector3[9];
             for (int n = 0; n < 9; n++)
-                Marker($"Waypoint_{LaneName[i]}_{n:00}", new Vector3((-40 + n * 10) * K, 0, LaneZ[i]));
+            {
+                pts[n] = Ell(LaneA, LaneB, 150f - n * 15f);
+                if (i == 1) pts[n].z = -pts[n].z;
+                // One shared ordered list, blue base -> red base. Red minions walk it in reverse.
+                Marker($"Waypoint_{LaneName[i]}_{n:00}", pts[n]);
+            }
+            lanePts[i] = pts;
             waypoints += 9;
+            for (int n = 0; n < 8; n++)
+                Seg($"Lane_{LaneName[i]}_{n}", pts[n], pts[n + 1], 0.1f, 8f, lane, 0.05f);
         }
     }
 
+    // Jungle walls: one along the inside of each lane with gaps for entrances (the names start with
+    // "JungleWall" so vision treats them as sight blockers), plus a maze of short walls in the middle.
     static void BuildJungleWalls()
     {
-        // Mirrored wall segments with gaps at x=0 and x=+-27 so the jungle has entrances.
-        float[,] segs = { { -38, -30 }, { -24, -3 }, { 3, 24 }, { 30, 38 } };
-        foreach (float z in new[] { 12f * K, -12f * K })
-            for (int s = 0; s < segs.GetLength(0); s++)
-            {
-                float a = segs[s, 0] * K, b = segs[s, 1] * K;
-                Box($"JungleWall_{(z > 0 ? "N" : "S")}_{s}", PrimitiveType.Cube,
-                    new Vector3((a + b) / 2, 1, z), new Vector3(b - a, 2, 1), ground);
-            }
+        float[][] chunks = { new[] { 24f, 52f }, new[] { 62f, 84f }, new[] { 96f, 118f }, new[] { 128f, 156f } };
+        foreach (int sign in new[] { 1, -1 })
+            foreach (var ch in chunks)
+                for (float a = ch[0]; a < ch[1] - 0.01f; a += 7f)
+                {
+                    var p = Ell(RimA, RimB, a);
+                    var q = Ell(RimA, RimB, Mathf.Min(a + 7f, ch[1]));
+                    p.z *= sign;
+                    q.z *= sign;
+                    Seg($"JungleWall_Rim_{(sign > 0 ? "N" : "S")}_{wallCount++}", p, q, 2f, 1f, ground, 1f);
+                }
+
+        // x, z, length along x, thickness along z. Each is mirrored into all four quarters of the map.
+        float[][] maze = { new[] { 22f, 5f, 10f, 1.6f }, new[] { 8f, 16f, 1.6f, 9f }, new[] { 44f, 8f, 1.6f, 10f } };
+        foreach (var m in maze)
+            foreach (int sx in new[] { -1, 1 })
+                foreach (int sz in new[] { -1, 1 })
+                    Box($"JungleWall_Maze_{wallCount++}", PrimitiveType.Cube, new Vector3(sx * m[0], 1f, sz * m[1]), new Vector3(m[2], 2f, m[3]), ground);
     }
 
     static void BuildJungleMarkers()
     {
-        // Empty-ish named markers; M7 fills these with camps and big-buff objectives.
+        // Empty-ish named markers; the jungle manager spawns camps and the two big objectives on them.
         foreach (int side in new[] { -1, 1 })
             for (int i = 0; i < 2; i++)
             {
                 Box($"Camp_{TeamName[side < 0 ? 0 : 1]}_{LaneName[i]}", PrimitiveType.Cylinder,
-                    new Vector3(side * 18 * K, 0.1f, (i == 0 ? 5 : -5) * K), new Vector3(2, 0.1f, 2), lane);
+                    new Vector3(side * 32f, 0.1f, i == 0 ? 16f : -16f), new Vector3(2, 0.1f, 2), lane);
                 camps++;
             }
         for (int i = 0; i < 2; i++)
         {
-            Box($"BigBuff_{LaneName[i]}", PrimitiveType.Cylinder,
-                new Vector3(0, 0.1f, (i == 0 ? 6 : -6) * K), new Vector3(4, 0.1f, 4), lane);
+            Box($"BigBuff_{LaneName[i]}", PrimitiveType.Cylinder, new Vector3(0, 0.1f, i == 0 ? 10f : -10f), new Vector3(4, 0.1f, 4), lane);
             pits++;
         }
     }
@@ -145,8 +195,12 @@ public static class BuildGreyboxMap
 
         for (int i = 0; i < 2; i++)
         {
-            Box($"Tower_{team}_{LaneName[i]}_Outer", PrimitiveType.Cylinder, new Vector3(side * 22 * K, 1.5f, LaneZ[i]), new Vector3(1.5f, 1.5f, 1.5f), mat);
-            Box($"Tower_{team}_{LaneName[i]}_Inner", PrimitiveType.Cylinder, new Vector3(side * 34 * K, 1.5f, LaneZ[i]), new Vector3(1.5f, 1.5f, 1.5f), mat);
+            // Lane points run blue -> red: the outer tower is on the third point from this team's end, the inner one near its base.
+            var pts = lanePts[i];
+            Vector3 outer = side < 0 ? pts[2] : pts[6];
+            Vector3 inner = side < 0 ? (pts[0] + pts[1]) / 2f : (pts[8] + pts[7]) / 2f;
+            Box($"Tower_{team}_{LaneName[i]}_Outer", PrimitiveType.Cylinder, new Vector3(outer.x, 1.5f, outer.z), new Vector3(1.5f, 1.5f, 1.5f), mat);
+            Box($"Tower_{team}_{LaneName[i]}_Inner", PrimitiveType.Cylinder, new Vector3(inner.x, 1.5f, inner.z), new Vector3(1.5f, 1.5f, 1.5f), mat);
             towers += 2;
         }
     }

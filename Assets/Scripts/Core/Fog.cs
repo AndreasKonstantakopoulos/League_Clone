@@ -36,10 +36,10 @@ public class Fog : MonoBehaviour
         quad.transform.rotation = Quaternion.Euler(90f, 0f, 0f);
         quad.transform.localScale = new Vector3(size.x, size.z, 1f);
         quad.GetComponent<Renderer>().sharedMaterial = new Material(Shader.Find("Sprites/Default")) { mainTexture = tex };
-        var wallBounds = new System.Collections.Generic.List<Bounds>();
+        var walls = new System.Collections.Generic.List<Transform>();
         foreach (var c in FindObjectsByType<Collider>(FindObjectsSortMode.None))
-            if (c.name.StartsWith("JungleWall")) wallBounds.Add(c.bounds);
-        Vision.SetWalls(wallBounds);
+            if (c.name.StartsWith("JungleWall")) walls.Add(c.transform);
+        Vision.SetWalls(walls);
         Vision.Refresh();
         Rebuild(Viewer());
     }

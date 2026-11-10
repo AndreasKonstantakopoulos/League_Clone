@@ -331,7 +331,7 @@ public class Champion : MonoBehaviour
     {
         bool remote = Net.IsClientOnly;
         if (GameInput.KeyDown('B')) { if (remote) Net.SendRecall(); else CmdRecall(); }
-        if (GameInput.RightClickDown)
+        if (GameInput.RightClickDown && !Hud.PointerOverUi) // clicks on the minimap, panel or shop must not move you
         {
             var p = GameInput.MouseGround();
             var e = Unit.NearestTo(p, 2f, u => u.Team != U.Team && !u.Invulnerable && Vision.Targetable(U.Team, u));
@@ -347,6 +347,8 @@ public class Champion : MonoBehaviour
     }
 
     // Commands: run on the host for every champion. Clients are untrusted, so each one re-checks what it is asked to do.
+    // Move order from anywhere (minimap): act directly, or ask the host.
+    public void RequestMove(Vector3 p) { if (Net.IsClientOnly) Net.SendMove(p); else CmdMove(p); }
     public void CmdMove(Vector3 p) { Recalling = false; target = null; MoveTo(p); }
     public void CmdAttack(Unit t)
     {

@@ -15,12 +15,21 @@ public static class Vision
     static readonly HashSet<Unit>[] seen = { new HashSet<Unit>(), new HashSet<Unit>() };
     // invisible enemy champions standing in range of that team's towers or Nexus (they detect stealth, even inner towers that cannot be attacked yet)
     static readonly HashSet<Unit>[] revealed = { new HashSet<Unit>(), new HashSet<Unit>() };
-    static readonly List<Vector4> walls = new List<Vector4>(); // flat rectangles: x = minX, y = minZ, z = maxX, w = maxZ
+    struct Wall { public float cx, cz, hx, hz, cos, sin; } // a rectangle seen from above: centre, half sizes, rotation
+    static readonly List<Wall> walls = new List<Wall>();
 
-    public static void SetWalls(IEnumerable<Bounds> bounds)
+    public static void SetWalls(IEnumerable<Transform> wallObjects)
     {
         walls.Clear();
-        foreach (var b in bounds) walls.Add(new Vector4(b.min.x, b.min.z, b.max.x, b.max.z));
+        foreach (var t in wallObjects)
+        {
+            float yaw = t.eulerAngles.y * Mathf.Deg2Rad;
+            walls.Add(new Wall
+            {
+                cx = t.position.x, cz = t.position.z, hx = t.lossyScale.x / 2f, hz = t.lossyScale.z / 2f,
+                cos = Mathf.Cos(yaw), sin = Mathf.Sin(yaw)
+            });
+        }
     }
 
     public static float RadiusOf(Unit u)
@@ -47,14 +56,17 @@ public static class Vision
         return hit <= NearWall && dist - hit <= PeekBeyond; // right at the wall: a short peek past it
     }
 
-    // Distance from s to the first wall on the way to t, or -1 if the way is clear (2D slab test against each wall rectangle).
+    // Distance from s to the first wall on the way to t, or -1 if the way is clear (2D slab test in each wall's own frame).
     static float FirstWall(float sx, float sz, float tx, float tz)
     {
         float dx = tx - sx, dz = tz - sz, best = float.MaxValue;
         foreach (var w in walls)
         {
             float t0 = 0f, t1 = 1f;
-            if (!Slab(sx, dx, w.x, w.z, ref t0, ref t1) || !Slab(sz, dz, w.y, w.w, ref t0, ref t1)) continue;
+            float ox = sx - w.cx, oz = sz - w.cz; // rotate the segment into the wall's frame, where the wall is axis-aligned
+            float lsx = ox * w.cos - oz * w.sin, lsz = ox * w.sin + oz * w.cos;
+            float ldx = dx * w.cos - dz * w.sin, ldz = dx * w.sin + dz * w.cos;
+            if (!Slab(lsx, ldx, -w.hx, w.hx, ref t0, ref t1) || !Slab(lsz, ldz, -w.hz, w.hz, ref t0, ref t1)) continue;
             if (t0 < best) best = t0;
         }
         return best == float.MaxValue ? -1f : best * Mathf.Sqrt(dx * dx + dz * dz);

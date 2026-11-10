@@ -55,3 +55,9 @@ Only your own side gives vision: your champion (12 m), minions (8 m), towers (13
 ### Detection and the Nexus
 
 Towers and the Nexus detect invisible champions within their vision range: the champion is drawn as a see-through ghost for the detecting team, can be targeted while revealed, and the structures shoot it. This works for every tower, including inner ones that cannot be attacked yet. The Nexus also fires at enemies near it (11 m, 150 damage a second). Tower and Nexus numbers: `Tower.Configure` and `GameManager.MakeStructure`.
+
+### Map layout and minimap
+
+Re-run `Tools > Build Greybox Map` to get the new layout: an oval field with the blue base at the left end and red at the right, two lanes curving along the top and bottom edges, and a jungle of walls and camps between them (the two big pits sit in the middle). The lane-side jungle walls have gaps as entrances. Everything is built from a few numbers at the top of `Assets/Editor/BuildGreyboxMap.cs`.
+
+The minimap is in the bottom-right corner: it shows what you can see (fog included), your champion with a white ring, and a white box for what your camera sees. Click it with the left or right mouse button and your champion walks there. Clicks on the minimap, the bottom panel and the shop no longer move your champion in the world.
