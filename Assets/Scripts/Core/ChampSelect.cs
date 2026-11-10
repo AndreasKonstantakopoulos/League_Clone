@@ -9,9 +9,9 @@ public class ChampSelect : MonoBehaviour
     ChampionDef sel;
     GameObject preview;
     Vector2 listScroll;
-    string ip = "127.0.0.1", port = Net.DefaultPort.ToString(), notice = "";
+    string ip = "127.0.0.1", port = Net.DefaultPort.ToString(), code = "", notice = "";
     // Button presses are queued and run in Update, because changing the UI mid-OnGUI breaks IMGUI layout.
-    bool pendingHost, pendingJoin, pendingLeave, pendingStart, pendingSolo;
+    bool pendingHost, pendingJoin, pendingHostRelay, pendingJoinRelay, pendingLeave, pendingStart, pendingSolo;
 
     void Start()
     {
@@ -52,6 +52,8 @@ public class ChampSelect : MonoBehaviour
         if (Net.Lost) { notice = Net.Status; Net.Shutdown(); }
         if (pendingHost) { pendingHost = false; notice = ""; Net.StartHost(Port()); Net.Pick(Content.Champions.IndexOf(sel)); }
         if (pendingJoin) { pendingJoin = false; notice = ""; Net.Join(ip, Port()); }
+        if (pendingHostRelay) { pendingHostRelay = false; notice = ""; Net.HostRelay(); }
+        if (pendingJoinRelay) { pendingJoinRelay = false; notice = ""; Net.JoinRelay(code); }
         if (pendingLeave) { pendingLeave = false; Net.Shutdown(); }
         if (pendingStart) { pendingStart = false; Net.StartMatch(); }
         if (pendingSolo) { pendingSolo = false; Session.Selected = sel; SceneManager.LoadScene("Map"); }
@@ -98,19 +100,25 @@ public class ChampSelect : MonoBehaviour
 
     void DrawLobby()
     {
-        GUILayout.BeginArea(new Rect(Screen.width / 2f - 250f, Screen.height - 270f, 500f, 250f), GUI.skin.box);
+        GUILayout.BeginArea(new Rect(Screen.width / 2f - 260f, Screen.height - 330f, 520f, 310f), GUI.skin.box);
         if (!Net.Online)
         {
-            GUILayout.Label("Play with friends");
+            GUILayout.Label("Play with friends (Unity Relay: you share a code, never your IP)");
+            GUILayout.BeginHorizontal();
+            if (GUILayout.Button("Host a game", GUILayout.Height(30f))) pendingHostRelay = true;
+            GUILayout.Label("Code", GUILayout.Width(36f));
+            code = GUILayout.TextField(code, 8, GUILayout.Width(100f));
+            if (GUILayout.Button("Join", GUILayout.Height(30f), GUILayout.Width(80f))) pendingJoinRelay = true;
+            GUILayout.EndHorizontal();
+            GUILayout.Space(6f);
+            GUILayout.Label("Direct connection (LAN only, this shares the host's IP):");
             GUILayout.BeginHorizontal();
             GUILayout.Label("IP", GUILayout.Width(24f));
-            ip = GUILayout.TextField(ip, GUILayout.Width(170f));
+            ip = GUILayout.TextField(ip, GUILayout.Width(150f));
             GUILayout.Label("Port", GUILayout.Width(34f));
-            port = GUILayout.TextField(port, GUILayout.Width(70f));
-            GUILayout.EndHorizontal();
-            GUILayout.BeginHorizontal();
-            if (GUILayout.Button("Host a game", GUILayout.Height(30f))) pendingHost = true;
-            if (GUILayout.Button("Join", GUILayout.Height(30f))) pendingJoin = true;
+            port = GUILayout.TextField(port, GUILayout.Width(60f));
+            if (GUILayout.Button("Host")) pendingHost = true;
+            if (GUILayout.Button("Join")) pendingJoin = true;
             GUILayout.EndHorizontal();
             if (notice.Length > 0) GUILayout.Label(notice);
             else if (Net.Status.Length > 0) GUILayout.Label(Net.Status + " (see the Console for details)"); // e.g. hosting failed
@@ -120,16 +128,23 @@ public class ChampSelect : MonoBehaviour
         else
         {
             GUILayout.Label(Net.Status);
+            if (Net.JoinCode.Length > 0)
+            {
+                GUILayout.BeginHorizontal();
+                GUILayout.Label("Join code:  " + Net.JoinCode);
+                if (GUILayout.Button("Copy", GUILayout.Width(70f))) GUIUtility.systemCopyBuffer = Net.JoinCode;
+                GUILayout.EndHorizontal();
+            }
             foreach (var p in Net.Players)
                 GUILayout.Label($"{(p.Id == Net.MyId ? "You" : "Player " + p.Id)}  -  {p.Team}  -  {Content.Champions[p.ChampIndex].Name}");
             GUILayout.FlexibleSpace();
             GUILayout.BeginHorizontal();
             if (GUILayout.Button("Leave", GUILayout.Height(40f), GUILayout.Width(100f))) pendingLeave = true;
-            if (Net.IsHost)
+            if (Net.IsHost && Net.Me != null)
             {
                 if (GUILayout.Button($"Start match ({Net.Players.Count} players)", GUILayout.Height(40f))) pendingStart = true;
             }
-            else GUILayout.Label("Waiting for the host to start...");
+            else GUILayout.Label(Net.IsHost ? "Setting up..." : "Waiting for the host to start...");
             GUILayout.EndHorizontal();
         }
         GUILayout.EndArea();

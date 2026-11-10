@@ -2,6 +2,9 @@ using System.Collections.Generic;
 using Unity.Collections;
 using Unity.Netcode;
 using Unity.Netcode.Transports.UTP;
+using Unity.Services.Authentication;
+using Unity.Services.Core;
+using Unity.Services.Multiplayer;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
@@ -60,39 +63,98 @@ public static class Net
     }
 
     // ---------------- connection ----------------
-    public static void StartHost(ushort port) { Create("127.0.0.1", port, true); }
-    public static void Join(string ip, ushort port) { Create(ip.Trim(), port, false); }
+    public static string JoinCode = "";   // Relay games: share this instead of an IP address
+    static bool busy;
 
-    static void Create(string ip, ushort port, bool host)
+    // Direct connection (LAN or port-forwarded). This exposes the host's IP to the players.
+    public static void StartHost(ushort port) { Direct("127.0.0.1", port, true); }
+    public static void Join(string ip, ushort port) { Direct(ip.Trim(), port, false); }
+
+    // Builds the NetworkManager and transport but does not start them.
+    static UnityTransport Prepare(bool host)
     {
         Shutdown();
         Application.runInBackground = true; // a window that loses focus must keep simulating or the peers drift apart
         Lost = false;
         MatchStarted = false;
+        JoinCode = "";
         root = new GameObject("Net");
         root.SetActive(false); // configure before the NetworkManager wakes up
         Object.DontDestroyOnLoad(root);
         nm = root.AddComponent<NetworkManager>();
         var transport = root.AddComponent<UnityTransport>();
         nm.NetworkConfig = new NetworkConfig { NetworkTransport = transport, EnableSceneManagement = false };
-        transport.SetConnectionData(ip, port, host ? "0.0.0.0" : null);
         root.AddComponent<NetDriver>();
         root.SetActive(true);
-
         Mode = host ? NetMode.Host : NetMode.Client;
         nm.OnClientConnectedCallback += OnConnected;
         nm.OnClientDisconnectCallback += OnDisconnected;
+        return transport;
+    }
+
+    static void Direct(string ip, ushort port, bool host)
+    {
+        var transport = Prepare(host);
+        transport.SetConnectionData(ip, port, host ? "0.0.0.0" : null);
         bool ok = host ? nm.StartHost() : nm.StartClient();
-        if (!ok) { Status = "Could not start networking"; Shutdown(); return; }
+        if (!ok) { Shutdown(); Status = "Could not start networking"; return; }
+        Begin(host, host ? $"Hosting on {LocalAddress()}:{port}" : "Connecting...");
+    }
+
+    // Registers the message handlers and, for the host, adds the host as the first player.
+    static void Begin(bool host, string status)
+    {
         RegisterHandlers();
         Players.Clear();
         if (host)
         {
             Players.Add(new Player { Id = nm.LocalClientId, Ready = true });
             AssignTeams();
-            Status = $"Hosting on {LocalAddress()}:{port}";
         }
-        else Status = "Connecting...";
+        Status = status;
+    }
+
+    static async System.Threading.Tasks.Task SignIn()
+    {
+        if (UnityServices.State != ServicesInitializationState.Initialized) await UnityServices.InitializeAsync();
+        if (!AuthenticationService.Instance.IsSignedIn) await AuthenticationService.Instance.SignInAnonymouslyAsync();
+    }
+
+    // Relay: Unity's Multiplayer Services create the session and a short join code and start the NetworkManager
+    // for us. Players only ever see the code, never an IP address.
+    public static async void HostRelay()
+    {
+        if (busy) return;
+        busy = true;
+        try
+        {
+            Prepare(true);
+            Status = "Creating Relay game...";
+            await SignIn();
+            var session = await MultiplayerService.Instance.CreateSessionAsync(new SessionOptions { MaxPlayers = MaxPlayers }.WithRelayNetwork());
+            if (nm == null || !nm.IsListening) throw new System.Exception("The Multiplayer Services SDK did not start the host");
+            JoinCode = session.Code;
+            Begin(true, "Hosting via Relay");
+        }
+        catch (System.Exception e) { Debug.LogException(e); Shutdown(); Status = "Relay failed: " + e.Message; }
+        finally { busy = false; }
+    }
+
+    public static async void JoinRelay(string code)
+    {
+        if (busy) return;
+        busy = true;
+        try
+        {
+            Prepare(false);
+            Status = "Joining...";
+            await SignIn();
+            await MultiplayerService.Instance.JoinSessionByCodeAsync(code.Trim().ToUpperInvariant());
+            if (nm == null || !nm.IsClient) throw new System.Exception("The Multiplayer Services SDK did not start the client");
+            Begin(false, "Connecting...");
+        }
+        catch (System.Exception e) { Debug.LogException(e); Shutdown(); Status = "Could not join: " + e.Message; }
+        finally { busy = false; }
     }
 
     public static void Shutdown()
@@ -103,6 +165,7 @@ public static class Net
         root = null;
         Mode = NetMode.Solo;
         MatchStarted = false;
+        JoinCode = "";
         Players.Clear();
         byId.Clear();
         seen.Clear();

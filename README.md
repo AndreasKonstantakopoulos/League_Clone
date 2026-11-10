@@ -33,7 +33,8 @@ The map size is one constant (`K` in `Assets/Editor/BuildGreyboxMap.cs`, now 1.6
 
 ### Playing with friends (online)
 
-- In champion select use the **Play with friends** panel. One player presses **Host a game**; the others type the host's IP and press **Join**. Everyone picks a champion (the lobby shows the picks and teams: players alternate Blue, Red, Blue...), then the host presses **Start match**. Up to 6 players.
-- The host runs the whole game, exactly like solo play. Clients only send commands (move, attack, cast, recall, buy, sell, rank) and mirror what the host sends: every champion, minion, monster, tower, health bars, objective timers, buffs, and all particle effects. Your own gold, cooldowns and items are sent privately to you.
-- Same machine / Multiplayer Play Mode: host on `127.0.0.1`, join `127.0.0.1`. Over the internet the host must forward UDP port 7777 on their router (or use a VPN such as Tailscale/ZeroTier) and friends join with the host's public IP. Unity Relay would remove that step but needs the project linked to a Unity account.
+- In champion select use **Play with friends**. One player presses **Host a game** and gets a short **join code** (with a Copy button). Friends type the code and press **Join**. Nobody sees anyone's IP: traffic goes through Unity Relay. Players alternate Blue, Red, Blue... and the host presses **Start match**. Up to 6 players.
+- One-time setup (needs your Unity account, I can't do it for you): sign in to the Unity Hub/Editor, link the project to a Unity Cloud project (Project Settings > Services), and make sure Relay is enabled for it in the Unity Dashboard. Anonymous sign-in is used, so players need no accounts.
+- The host runs the whole game. Clients send commands (move, attack, cast, recall, buy, sell, rank) and mirror what the host sends: champions, minions, monsters, towers, health bars, objectives, buffs and all particle effects. Your own gold, cooldowns and items are sent privately to you.
+- The old **Direct** row (IP and port) still works for LAN play, but it shares the host's IP, so use the code for friends over the internet.
 - Code: `Assets/Scripts/Networking/` (`Net.cs` has the lobby, commands, snapshots and effect messages).
