@@ -57,8 +57,13 @@ public class ChampSelect : MonoBehaviour
         if (pendingLeave) { pendingLeave = false; Net.Shutdown(); }
         if (pendingStart) { pendingStart = false; Net.StartMatch(); }
         if (pendingSolo) { pendingSolo = false; Session.Selected = sel; SceneManager.LoadScene("Map"); }
-        // a client that just connected has no pick on the host yet: send the one on screen
-        if (Net.IsClientOnly && Net.Me == null) Net.Pick(Content.Champions.IndexOf(sel));
+        // keep the lobby's record of my pick equal to the one on screen (covers a freshly connected client and a Relay host that finished setting up later)
+        if (Net.Online)
+        {
+            var me = Net.Me;
+            int want = Content.Champions.IndexOf(sel);
+            if (me == null ? Net.IsClientOnly : me.ChampIndex != want) Net.Pick(want);
+        }
     }
 
     void OnGUI()
