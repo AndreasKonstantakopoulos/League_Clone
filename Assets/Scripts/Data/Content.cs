@@ -355,6 +355,26 @@ public static class Content
         },
         new ChampionDef
         {
+            // A stylish duelist with a pistol and a blade: short range, rewards mixing attacks and abilities, then unloads everything at once.
+            Name = "Reyna Flairshot", Role = Role.Marksman, Color = new Color(0.85f, 0.25f, 0.3f), AttackRange = 6f,
+            Base = St(hp: 560, mana: 300, ad: 60, armor: 28, mr: 30, aspd: 0.68f, ms: 6f, hpr: 1.3f, mpr: 1.2f),
+            Growth = St(hp: 82, mana: 36, ad: 3.4f, armor: 3.4f, mr: 1.25f, aspd: 0.03f),
+            Passive = Pas(PassiveKind.Style, "Daring Flair", "Each attack or ability that hits and differs from her previous one raises her Style (E, D, C, B, A, S; fades after 6 s) and gives +0.2 move speed per grade. Attacks on enemies within 3 m are sword strikes that deal 12 + 10% AD bonus magic damage. At grade S she can use Storm of Steel.", a: 0.2f, b: 12f, c: 6f),
+            Abilities = new[]
+            {
+                Ab("Flair", Shape.Skillshot, 9, 1.1f, 4, 30, Phys(40, 25, ad: 1f))
+                    .Says("Fires a quick shot that hits the first enemy in line.").Looks(VfxStyle.Arrow, 0.25f, new Color(1f, 0.8f, 0.35f)),
+                Ab("Blade Whirl", Shape.SelfArea, 0, 3.5f, 16, 60, Phys(50, 30, ad: 0.8f), Shield(120, 60, dur: 0.75f, who: Affects.Caster))
+                    .Says("Spins her blade, slashing enemies around her and blocking incoming damage for a moment.").Looks(VfxStyle.Whirl, 0.4f, new Color(0.95f, 0.3f, 0.35f)),
+                Ab("Wild Rush", Shape.TargetEnemy, 6.5f, 0, 12, 40, Dash(7.5f), Magic(50, 30, ad: 0.3f), Buff(St(aspd: 0.3f), 3f))
+                    .Says("Dashes to an enemy, slashing it, and gains attack speed. Killing a champion makes it ready again at once.").Looks(VfxStyle.Dash, 0.35f, new Color(0.95f, 0.3f, 0.35f)),
+                Ab("Storm of Steel", Shape.SelfArea, 0, 6, 8, 0, Phys(12, 10, ad: 0.45f).Vamps(0.25f))
+                    .Ult().Channel(10, 0.2f).Styled()
+                    .Says("Only usable at Style S, and it spends her Style. For 2 seconds she fires 10 volleys at every enemy around her while free to move, healing for part of the damage.").Looks(VfxStyle.Whirl, 0.9f, new Color(1f, 0.75f, 0.3f)),
+            }
+        },
+        new ChampionDef
+        {
             Name = "Marek Emberstring", Role = Role.Marksman, Color = new Color(0.9f, 0.6f, 0.2f), AttackRange = 7f,
             Base = St(hp: 520, mana: 290, ad: 59, armor: 24, mr: 30, aspd: 0.66f, ms: 5.8f, hpr: 1.2f, mpr: 1f),
             Growth = St(hp: 74, mana: 36, ad: 3.3f, armor: 3.1f, mr: 1.25f, aspd: 0.03f),

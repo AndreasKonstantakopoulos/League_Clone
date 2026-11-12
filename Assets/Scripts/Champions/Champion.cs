@@ -1,3 +1,4 @@
+using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.AI;
@@ -31,7 +32,11 @@ public class Champion : MonoBehaviour
         var o = new List<Unit.Status>();
         U.CollectStatuses(o);
         if (PassiveStacks > 0)
-            o.Add(new Unit.Status { Name = Def.Passive.Name + (PassiveStacks > 1 ? $" x{PassiveStacks}" : ""), Desc = Def.Passive.Desc, Left = -1f });
+            o.Add(new Unit.Status
+            {
+                Name = Def.Passive.Name + (Def.Passive.Kind == PassiveKind.Style ? " " + StyleGrade : PassiveStacks > 1 ? $" x{PassiveStacks}" : ""),
+                Desc = Def.Passive.Desc, Left = -1f
+            });
         var gm = GameManager.I;
         int altars = gm != null && gm.Jungle != null ? gm.Jungle.AltarsOf(U.Team) : 0;
         if (altars >= 1)
@@ -42,6 +47,54 @@ public class Champion : MonoBehaviour
             });
         if (!Dead && gm != null && AtBase) o.Add(new Unit.Status { Name = "Fountain", Desc = "Quickly restores health and mana", Left = -1f });
         return o;
+    }
+
+    public const int MaxStyle = 6;
+    public string StyleGrade => PassiveStacks > 0 ? "EDCBAS"[Mathf.Min(PassiveStacks, MaxStyle) - 1].ToString() : "-";
+    int lastStyle = -99;   // what raised Style last (-1 = auto attack, 0..3 = ability slot): the same thing twice in a row does not count
+    float styleUntil;
+
+    // Style passive: a hit that differs from the previous one raises the grade and refreshes its timer.
+    void GainStyle(int id)
+    {
+        var p = Def.Passive;
+        if (p.Kind != PassiveKind.Style || id == lastStyle) return;
+        lastStyle = id;
+        PassiveStacks = Mathf.Min(PassiveStacks + 1, MaxStyle);
+        styleUntil = Time.time + p.C;
+        SetPassiveBonus(Fx.St(ms: p.A * PassiveStacks));
+    }
+
+    void ClearStyle()
+    {
+        PassiveStacks = 0;
+        lastStyle = -99;
+        SetPassiveBonus(new Stats());
+    }
+
+    // Called by the game manager when this champion lands a killing blow.
+    public void OnKill(Unit victim)
+    {
+        if (Def.Passive.Kind == PassiveKind.Style && victim.Kind == UnitKind.Champion) CdEnd[2] = Time.time; // the dash is ready again
+    }
+
+    // Channelled abilities: after the first hit, keep hitting every enemy around the caster, who is free to move.
+    IEnumerator Channel(AbilityDef a, int rank)
+    {
+        for (int i = 1; i < a.Repeat; i++)
+        {
+            yield return new WaitForSeconds(a.RepeatInterval);
+            if (!U.Alive || U.Stunned) yield break;
+            var hit = new List<Unit>();
+            Unit.InRadius(transform.position, a.Radius, hit);
+            foreach (var t in hit)
+            {
+                if (t.Team == U.Team || t.Invulnerable || !Vision.Targetable(U.Team, t)) continue;
+                foreach (var e in a.Effects)
+                    if (e.Who == Affects.Enemies) Apply(e, e.Amount(U, rank), t);
+                Vfx.Auto(U, Def.Color, false, t); // a shot at each of them
+            }
+        }
     }
 
     public int PassiveStacks; // for the HUD: stacks, or 0/1 for passives that are simply on or off
@@ -263,6 +316,9 @@ public class Champion : MonoBehaviour
             case PassiveKind.Thorns: // the reflection itself is in Unit.TakeDamage
             case PassiveKind.Lifesteal: // applied when she attacks
                 PassiveStacks = 1;
+                break;
+            case PassiveKind.Style:
+                if (PassiveStacks > 0 && Time.time > styleUntil) ClearStyle();
                 break;
             case PassiveKind.Wellspring:
                 U.Mana = Mathf.Min(U.Total.Mana, U.Mana + U.Total.Mana * p.A * dt);
@@ -490,7 +546,13 @@ public class Champion : MonoBehaviour
                 target.TakeDamage(p.A + p.B * U.Total.AP, DamageType.Magic, U);
                 U.Mana = Mathf.Min(U.Total.Mana, U.Mana + p.C);
             }
-            Vfx.Auto(U, Def.Color, Def.AttackRange <= 3f, target);
+            bool sword = pas.Kind == PassiveKind.Style && gap <= 3f; // Style champions strike with the blade up close
+            if (pas.Kind == PassiveKind.Style)
+            {
+                GainStyle(-1);
+                if (sword) target.TakeDamage(pas.B + 0.1f * U.Total.AD, DamageType.Magic, U);
+            }
+            Vfx.Auto(U, Def.Color, Def.AttackRange <= 3f || sword, target);
         }
     }
 
@@ -506,6 +568,7 @@ public class Champion : MonoBehaviour
         var a = Def.Abilities[slot];
         int rank = Ranks[slot];
         if (rank == 0 || Time.time < CdEnd[slot] || !U.CanCast || U.Mana < a.Mana) return false;
+        if (a.NeedsStyle && PassiveStacks < MaxStyle) return false;
 
         Unit tgt = null;
         if (a.Shape == Shape.TargetEnemy)
@@ -566,6 +629,9 @@ public class Champion : MonoBehaviour
         }
 
         Vfx.Cast(a, U, Def.Color, pos, dir, point, dist, hit, this == Local);
+        if (a.NeedsStyle) ClearStyle();
+        else if (hit.Exists(t => t != null && t.Team != U.Team)) GainStyle(slot);
+        if (a.Repeat > 1) StartCoroutine(Channel(a, rank));
         return true;
     }
 

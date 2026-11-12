@@ -92,3 +92,7 @@ To use a real model, save a prefab named exactly like the champion (e.g. `Orrin 
 ### Game icon
 
 Three icons are in `Assets/Icons/` (1024 px PNG plus a Windows `.ico` of each): `GameIcon` (crystal), `GameIcon_Tree` and `GameIcon_Blades`. In Unity run `Tools > Set Game Icon` to make `GameIcon.png` the icon of the built game; select another PNG first to use that one. The `.ico` files are for shortcuts or installers.
+
+### Reyna Flairshot
+
+A 21st champion in the style of a pistol-and-blade duelist. Passive, Daring Flair: each attack or ability that hits and differs from her previous one raises her Style grade (E to S), which gives move speed; attacks within 3 m become sword strikes with bonus magic damage. Q Flair (quick shot), W Blade Whirl (slash around her plus a brief block), E Wild Rush (dash to an enemy, attack speed, resets on a champion kill), R Storm of Steel (only at grade S: 10 volleys over 2 seconds at everyone around her while she moves, with healing). New framework pieces: `PassiveKind.Style`, `.Styled()` and `.Channel(times, interval)` on abilities.

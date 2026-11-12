@@ -243,6 +243,22 @@ public static class ChampionModel
                 R(Ball, 0f, 2.06f, 0f, 0.48f, 0.2f, 0.48f, hawk);
                 break;
             }
+            case "Reyna Flairshot": // Flair, Blade Whirl: pistol in one hand, big blade in the other, eyepatch, long braid, crimson coat
+            {
+                var gold = new Color(1f, 0.78f, 0.3f); var hair = new Color(0.25f, 0.12f, 0.08f);
+                L(Cube, 0f, -0.72f, 0.3f, 0.08f, 0.1f, 0.42f, Black);                  // pistol
+                L(Cube, 0f, -0.82f, 0.14f, 0.07f, 0.2f, 0.09f, Wood);
+                A(Cube, 0f, -0.72f, 0.85f, 0.14f, 0.05f, 1.25f, Metal);                // blade
+                A(Cube, 0f, -0.72f, 0.22f, 0.4f, 0.09f, 0.08f, gold);
+                R(Cube, 0.1f, 1.93f, 0.21f, 0.15f, 0.11f, 0.03f, Black);               // eyepatch
+                R(Cyl, 0f, 1.98f, 0f, 0.46f, 0.02f, 0.46f, Black, 0, 0, 12);
+                R(Ball, 0f, 1.96f, -0.1f, 0.5f, 0.46f, 0.44f, hair);
+                R(Cube, 0.12f, 1.6f, -0.3f, 0.14f, 0.5f, 0.14f, hair, 15);             // braid
+                R(Cube, 0.12f, 1.15f, -0.38f, 0.11f, 0.45f, 0.11f, hair, 5);
+                R(Cube, 0f, 1.0f, -0.25f, w + 0.12f, 1.25f, 0.05f, dark);              // long coat
+                R(Ball, w / 2f + 0.1f, 1.68f, 0f, 0.34f, 0.34f, 0.34f, gold);          // one gold shoulder
+                break;
+            }
             case "Marek Emberstring": // Ember Shot, Dragon's Breath: a bow strung with fire, a burning arrow and dragon horns
             {
                 var ember = new Color(1f, 0.55f, 0.12f);

@@ -312,7 +312,7 @@ public class Hud : MonoBehaviour
         Color tint = a.Tint ?? Vfx.ColorOf(a);
         float total = a.CooldownAt(Mathf.Max(1, rank), c.U.Total.CDR);
         float cd = Mathf.Max(0f, c.CdEnd[i] - Time.time);
-        bool ready = rank > 0 && cd <= 0f && c.U.Mana >= a.Mana;
+        bool ready = rank > 0 && cd <= 0f && c.U.Mana >= a.Mana && (!a.NeedsStyle || c.PassiveStacks >= Champion.MaxStyle);
 
         Fill(r, ready ? Color.Lerp(tint, Color.white, 0.2f) : new Color(0.02f, 0.02f, 0.03f, 1f)); // bright frame when castable
         Fill(Inset(r, 3f), rank > 0 ? tint * 0.55f : new Color(0.2f, 0.2f, 0.22f));

@@ -16,7 +16,7 @@ public enum DamageType { Physical, Magic, True }
 public enum Affects { Enemies, Allies, Caster }
 // How an ability looks. Each style is its own particle recipe in Vfx.cs.
 // What kind of passive a champion has; the numbers A, B, C mean something different for each kind (see Champion.TickPassive).
-public enum PassiveKind { Stonebound, LastStand, ShadowVeil, Focus, Spellblade, HealingAura, Thorns, Aegis, Sprint, Lifesteal, Frenzy, Executioner, Wellspring, Spellrunner }
+public enum PassiveKind { Stonebound, LastStand, ShadowVeil, Focus, Spellblade, HealingAura, Thorns, Aegis, Sprint, Lifesteal, Frenzy, Executioner, Wellspring, Spellrunner, Style }
 public enum VfxStyle { Default, Impact, Slash, Whirl, Slam, Dome, Aura, Dash, Strike, Arrow, Bolt, Beam, Trap, Nova, Field, Storm, Heal, Dawn }
 
 [Serializable]
@@ -128,6 +128,12 @@ public class AbilityDef
     public float Power = 0.4f; // 0..1: how big the effect is and how hard the camera shakes
     public Color? Tint;        // overrides the damage-type colour for this ability
 
+    public bool NeedsStyle;        // only castable at the top Style grade (see PassiveKind.Style); casting spends the Style
+    public int Repeat = 1;         // channelled abilities hit this many times...
+    public float RepeatInterval;   // ...this many seconds apart, around the caster as she moves
+
+    public AbilityDef Channel(int times, float interval) { Repeat = times; RepeatInterval = interval; return this; }
+    public AbilityDef Styled() { NeedsStyle = true; return this; }
     public AbilityDef Looks(VfxStyle style, float power, Color? tint = null) { Style = style; Power = power; Tint = tint; return this; }
     public AbilityDef Pierces() { Pierce = true; return this; }
     public AbilityDef Ult() { MaxRank = 3; CdPerRank = Cooldown * 0.1f; return this; }

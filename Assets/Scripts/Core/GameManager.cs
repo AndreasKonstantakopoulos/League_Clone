@@ -270,6 +270,7 @@ public class GameManager : MonoBehaviour
         if (k != null)
         {
             k.Gold += victim.GoldBounty;
+            k.OnKill(victim);
             if (victim.Kind == UnitKind.Minion || victim.Kind == UnitKind.Monster) k.Gold += Jungle.AltarGold(k.U.Team); // altar bonus
         }
         if (victim.Kind == UnitKind.Inhibitor)
