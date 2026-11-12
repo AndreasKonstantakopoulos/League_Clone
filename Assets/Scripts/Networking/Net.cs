@@ -474,6 +474,15 @@ public static class Net
         if (j != null) foreach (var b in j.ActiveBuffs) if (b.Until > Time.time) buffs.Add(b);
         w.WriteValueSafe(buffs.Count);
         foreach (var b in buffs) { w.WriteValueSafe(b.Name); w.WriteValueSafe((byte)b.Team); w.WriteValueSafe(b.Until - Time.time); }
+        // altars and the relic
+        w.WriteValueSafe(j != null ? j.Altars.Count : 0);
+        if (j != null)
+            foreach (var a in j.Altars)
+            {
+                w.WriteValueSafe((byte)a.Owner); w.WriteValueSafe((byte)a.Capturer);
+                w.WriteValueSafe(a.LockedUntil); w.WriteValueSafe(a.Progress);
+            }
+        w.WriteValueSafe((byte)(j != null && j.RelicUp ? 1 : 0));
     }
 
     static void SendOwner(ulong to, Champion ch)
@@ -507,7 +516,7 @@ public static class Net
         if (!IsClientOnly || GameManager.I == null || byId.ContainsKey(id)) return;
 
         var k = (UnitKind)kind;
-        GameObject go = k == UnitKind.Tower || k == UnitKind.Nexus ? GameObject.Find(name) : null; // structures already exist in the scene
+        GameObject go = k == UnitKind.Tower || k == UnitKind.Nexus || k == UnitKind.Inhibitor ? GameObject.Find(name) : null; // structures already exist in the scene
         if (go == null)
         {
             go = GameObject.CreatePrimitive(mesh == "Cube" ? PrimitiveType.Cube : mesh == "Cylinder" ? PrimitiveType.Cylinder : PrimitiveType.Capsule);
@@ -574,6 +583,17 @@ public static class Net
             r.ReadValueSafe(out string bn); r.ReadValueSafe(out byte bt); r.ReadValueSafe(out float left);
             if (j != null) j.ActiveBuffs.Add(new ActiveBuff { Name = bn, Team = (Team)bt, Until = Time.time + left });
         }
+        r.ReadValueSafe(out int altarCount);
+        for (int i = 0; i < altarCount; i++)
+        {
+            r.ReadValueSafe(out byte owner); r.ReadValueSafe(out byte capturer);
+            r.ReadValueSafe(out float lockedUntil); r.ReadValueSafe(out float progress);
+            if (j == null || i >= j.Altars.Count) continue;
+            var a = j.Altars[i];
+            a.Owner = (Team)owner; a.Capturer = (Team)capturer; a.LockedUntil = lockedUntil; a.Progress = progress;
+        }
+        r.ReadValueSafe(out byte relicUp);
+        if (j != null) j.RelicUp = relicUp != 0;
         if (gm == null || !IsClientOnly) return;
         gm.Clock = clock;
         gm.State = (MatchState)state;

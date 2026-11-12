@@ -106,6 +106,7 @@ public class Minimap : MonoBehaviour
                 case UnitKind.Minion: s = 3f; break;
                 case UnitKind.Tower: s = 7f; break;
                 case UnitKind.Nexus: s = 12f; break;
+                case UnitKind.Inhibitor: s = 8f; break;
                 default: s = 5f; break;
             }
             var p = ToMinimap(u.transform.position, r);

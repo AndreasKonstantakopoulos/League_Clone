@@ -120,10 +120,23 @@ public class Hud : MonoBehaviour
         var sb = new StringBuilder();
         foreach (var o in gm.Jungle.Objectives)
             sb.AppendLine(o.IsAlive ? $"{o.Name}: alive" : $"{o.Name}: spawns in {Mathf.Max(0f, o.NextSpawn - gm.Clock):0}s");
+        foreach (var a in gm.Jungle.Altars)
+        {
+            string owner = a.Owner == Team.Neutral ? "neutral" : a.Owner.ToString();
+            string state = gm.Clock < a.LockedUntil ? $"locked {a.LockedUntil - gm.Clock:0}s"
+                         : a.Progress > 0f ? $"{a.Capturer} capturing {a.Progress / Rules.AltarCaptureTime * 100f:0}%" : "open";
+            sb.AppendLine($"{a.Name}: {owner} ({state})");
+        }
+        sb.AppendLine(gm.Jungle.RelicUp ? "Health relic: up" : "Health relic: taken");
+        if (c != null)
+        {
+            int mine = gm.Jungle.AltarsOf(c.U.Team);
+            if (mine >= 1) sb.AppendLine(mine >= 2 ? "ALTARS: +3 gold per kill, +10% AD and AP" : "ALTAR: +3 gold per minion and monster kill");
+        }
         if (c != null)
             foreach (var b in gm.Jungle.ActiveBuffs)
                 if (b.Team == c.U.Team && b.Until > Time.time) sb.AppendLine($"BUFF {b.Name}: {b.Until - Time.time:0}s left");
-        GUI.Label(new Rect(10, 34, 460, 90), sb.ToString());
+        GUI.Label(new Rect(10, 34, 460, 170), sb.ToString());
         if (Time.time < gm.BannerUntil) GUI.Box(new Rect(Screen.width / 2f - 280f, 50f, 560f, 34f), gm.Banner);
     }
 

@@ -40,6 +40,10 @@ public class Fog : MonoBehaviour
         foreach (var c in FindObjectsByType<Collider>(FindObjectsSortMode.None))
             if (c.name.StartsWith("JungleWall")) walls.Add(c.transform);
         Vision.SetWalls(walls);
+        var brush = new System.Collections.Generic.List<Transform>();
+        foreach (var c in FindObjectsByType<Collider>(FindObjectsSortMode.None))
+            if (c.name.StartsWith("Bush")) brush.Add(c.transform);
+        Vision.SetBushes(brush);
         Vision.Refresh();
         Rebuild(Viewer());
     }

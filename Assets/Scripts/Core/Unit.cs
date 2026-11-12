@@ -4,13 +4,14 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.AI;
 
-public enum UnitKind { Champion, Minion, Tower, Nexus, Monster }
+public enum UnitKind { Champion, Minion, Tower, Nexus, Monster, Inhibitor }
 
 // Anything that has health and can be hit: champions, minions, towers, the Nexus.
 public class Unit : MonoBehaviour
 {
     public static readonly List<Unit> All = new List<Unit>();
     public static event Action<Unit, Unit> AnyDied; // (victim, killer)
+    public static event Action<Unit, Unit> AnyDamaged; // (victim, attacker): turrets use it to defend allied champions
 
     public Team Team;
     public UnitKind Kind;
@@ -27,6 +28,8 @@ public class Unit : MonoBehaviour
     public int NetId;                           // identifies this unit across the network (assigned by the host)
     public bool Mirror, MirrorInvulnerable;     // Mirror = a client-side copy that only shows what the host reports
     public readonly List<Unit> Requires = new List<Unit>(); // all must be dead before this can be damaged
+    public readonly List<Unit> RequiresAny = new List<Unit>(); // at least one must be dead (the Nexus turret needs one inhibitor down)
+    public float PowerMult = 1f; // multiplies attack damage and ability power (holding both altars)
     public NavMeshAgent Agent;
 
     struct Buff { public Stats S; public float Until; }
@@ -34,13 +37,14 @@ public class Unit : MonoBehaviour
     float stunUntil, rootUntil, silenceUntil, slowUntil, slowAmt, shieldUntil;
 
     public bool Alive => Health > 0f;
-    public bool IsStructure => Kind == UnitKind.Tower || Kind == UnitKind.Nexus;
+    public bool IsStructure => Kind == UnitKind.Tower || Kind == UnitKind.Nexus || Kind == UnitKind.Inhibitor;
     public bool Stunned => Time.time < stunUntil;
     public bool Rooted => Time.time < rootUntil;
     public bool Silenced => Time.time < silenceUntil;
     public bool CanMove => Alive && !Stunned && !Rooted;
     public bool CanCast => Alive && !Stunned && !Silenced;
-    public bool Invulnerable => Mirror ? MirrorInvulnerable : Requires.Exists(u => u != null && u.Alive);
+    public bool Invulnerable => Mirror ? MirrorInvulnerable
+        : Requires.Exists(u => u != null && u.Alive) || (RequiresAny.Count > 0 && RequiresAny.TrueForAll(u => u != null && u.Alive));
 
     public Renderer Rend; // used by the fog to hide units that are out of sight
 
@@ -71,6 +75,8 @@ public class Unit : MonoBehaviour
     {
         var t = Base + PassiveBonus;
         foreach (var b in buffs) t = t + b.S;
+        t.AD *= PowerMult;
+        t.AP *= PowerMult;
         Total = t;
     }
 
@@ -107,7 +113,7 @@ public class Unit : MonoBehaviour
         if (!Alive || amount <= 0f || Invulnerable) return;
         LastDamaged = Time.time; // interrupts recall
         Stealthed = false;       // taking damage reveals you
-        if (src != null) LastAttacker = src;
+        if (src != null) { LastAttacker = src; AnyDamaged?.Invoke(this, src); }
         if (type != DamageType.True)
             amount *= 100f / (100f + Mathf.Max(0f, type == DamageType.Physical ? Total.Armor : Total.MR));
         if (Shield > 0f)

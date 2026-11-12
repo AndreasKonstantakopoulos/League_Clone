@@ -10,11 +10,11 @@ public class Minion : MonoBehaviour
     int wp;
     float next, range;
 
-    public void Init(List<Vector3> lanePath, Vector3 enemyNexus, bool caster)
+    public void Init(List<Vector3> lanePath, Vector3 enemyNexus, float attackRange)
     {
         path = lanePath;
         goal = enemyNexus;
-        range = caster ? 7f : 2.2f;
+        range = attackRange;
         u = GetComponent<Unit>();
     }
 

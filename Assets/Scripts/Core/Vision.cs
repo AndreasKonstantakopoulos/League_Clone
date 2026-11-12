@@ -17,19 +17,36 @@ public static class Vision
     static readonly HashSet<Unit>[] revealed = { new HashSet<Unit>(), new HashSet<Unit>() };
     struct Wall { public float cx, cz, hx, hz, cos, sin; } // a rectangle seen from above: centre, half sizes, rotation
     static readonly List<Wall> walls = new List<Wall>();
+    static readonly List<Wall> bushes = new List<Wall>(); // brush patches: whoever stands in one is hidden from outside it
+    const float BushReveal = 2.5f;                        // ...unless the viewer is this close
 
-    public static void SetWalls(IEnumerable<Transform> wallObjects)
+    public static void SetWalls(IEnumerable<Transform> wallObjects) { Fill(walls, wallObjects); }
+    public static void SetBushes(IEnumerable<Transform> bushObjects) { Fill(bushes, bushObjects); }
+
+    static void Fill(List<Wall> list, IEnumerable<Transform> objects)
     {
-        walls.Clear();
-        foreach (var t in wallObjects)
+        list.Clear();
+        foreach (var t in objects)
         {
             float yaw = t.eulerAngles.y * Mathf.Deg2Rad;
-            walls.Add(new Wall
+            list.Add(new Wall
             {
                 cx = t.position.x, cz = t.position.z, hx = t.lossyScale.x / 2f, hz = t.lossyScale.z / 2f,
                 cos = Mathf.Cos(yaw), sin = Mathf.Sin(yaw)
             });
         }
+    }
+
+    // Index of the brush patch containing the point, or -1.
+    static int BushAt(float x, float z)
+    {
+        for (int i = 0; i < bushes.Count; i++)
+        {
+            var w = bushes[i];
+            float ox = x - w.cx, oz = z - w.cz;
+            if (Mathf.Abs(ox * w.cos - oz * w.sin) <= w.hx && Mathf.Abs(ox * w.sin + oz * w.cos) <= w.hz) return i;
+        }
+        return -1;
     }
 
     public static float RadiusOf(Unit u)
@@ -40,6 +57,7 @@ public static class Vision
             case UnitKind.Minion: return 8f;
             case UnitKind.Tower: return 13f;
             case UnitKind.Nexus: return 11f;
+            case UnitKind.Inhibitor: return 8f;
             default: return 0f; // jungle monsters give nobody vision
         }
     }
@@ -50,6 +68,11 @@ public static class Vision
         float dx = t.x - s.x, dz = t.z - s.z;
         float dist = Mathf.Sqrt(dx * dx + dz * dz);
         if (dist > r) return false;
+        if (bushes.Count > 0 && dist > BushReveal)
+        {
+            int b = BushAt(t.x, t.z); // brush hides what is inside it from anyone not in the same patch
+            if (b >= 0 && BushAt(s.x, s.z) != b) return false;
+        }
         if (walls.Count == 0) return true;
         float hit = FirstWall(s.x, s.z, t.x, t.z);
         if (hit < 0f) return true;                         // nothing in the way

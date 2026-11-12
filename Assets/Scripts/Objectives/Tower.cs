@@ -18,6 +18,15 @@ public class Tower : MonoBehaviour
     }
 
     void Start() { u = GetComponent<Unit>(); }
+    void OnEnable() { Unit.AnyDamaged += OnDamaged; }
+    void OnDisable() { Unit.AnyDamaged -= OnDamaged; }
+
+    // An enemy champion who hurts an allied champion inside our range becomes the target at once.
+    void OnDamaged(Unit victim, Unit attacker)
+    {
+        if (u == null || !u.Alive || victim.Team != u.Team || victim.Kind != UnitKind.Champion) return;
+        if (attacker.Kind == UnitKind.Champion && attacker.Team != u.Team && InRange(attacker)) locked = attacker;
+    }
 
     bool InRange(Unit t) => t != null && t.Alive && u.DistTo(t.transform.position) - t.Radius <= range;
 

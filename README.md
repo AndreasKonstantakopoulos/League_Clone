@@ -25,11 +25,16 @@ Hover an ability in the bottom bar for its shape, range, cooldown (with item coo
 
 The map size is one constant (`K` in `Assets/Editor/BuildGreyboxMap.cs`, now 1.6 = 160x96 m). Change it and re-run `Tools > Build Greybox Map`.
 
-### Jungle (M7)
+### Jungle and objectives (Twisted Treeline 2013)
 
-- Four camps (a Brute and two Imps each) spawn at 15 s and respawn 60 s after being cleared. They pay gold and XP, and fight back if you get close or hit them. They walk home and heal if you pull them too far.
-- Two big objectives sit in the middle: the Ember Drake (spawns at 1:30, respawns every 3 min) and the Void Titan (spawns at 4:00, respawns every 5 min). Both stomp nearby enemies. Killing one gives your whole team a timed buff plus gold, and a banner announces it. Timers are on the top-left of the screen. All the timings are constants in `Rules` (`GameManager.cs`) and are short on purpose for testing.
-- Monster stats and the buffs are tables at the top of `Assets/Scripts/Objectives/JungleManager.cs`.
+- **Camps:** three per side (wolves, wraiths, golems). They spawn at 0:15 and respawn 75 s after being cleared.
+- **Vilemaw:** lives in the lair at the top centre. Spawns at 5:00, respawns 5 minutes after dying. Killing it gives the whole team Crest of Crushing Wrath for 150 s plus gold.
+- **Altars:** one west, one east, unlocked at 1:30. Stand on one with no enemy champion on it for 6 s to capture it; it then locks for 90 s. One altar: +3 gold per minion and monster kill. Both: also +10% attack damage and ability power.
+- **Health relic:** in the middle of the jungle from 1:30. Walk over it for 20% health and mana and a short speed boost; it returns after 90 s.
+- **Brush:** standing in a patch of brush hides you from enemies outside it (unless they are within 2.5 m).
+- **Structures:** per lane an outer turret, an inner turret and an inhibitor, then the Nexus turret (needs one inhibitor down), then the Nexus. A dead inhibitor makes the other team spawn a super minion in that lane with every wave. Inhibitors do not respawn.
+- **Waves:** every third wave has a siege minion, and minions get tougher as the match goes on. Turrets switch to an enemy champion who hurts an allied champion in range. The fountain shoots enemies on a team's spawn.
+- All timings are constants in `Rules` (`GameManager.cs`); they are shorter than the real map for testing, with the 2013 values noted beside them. Monsters and altars: `Assets/Scripts/Objectives/JungleManager.cs`.
 
 ### Playing with friends (online)
 
