@@ -25,10 +25,10 @@ public static class BuildGreyboxMap
     // Lane centre lines as (x, z), blue base -> red base.
     static readonly Vector2[][] LanePath =
     {
-        new[] { new Vector2(-66, 27), new Vector2(-50, 25), new Vector2(-36, 18), new Vector2(-22, 10), new Vector2(0, 5),
-                new Vector2(22, 10), new Vector2(36, 18), new Vector2(50, 25), new Vector2(66, 27) },
-        new[] { new Vector2(-66, -30), new Vector2(-52, -35), new Vector2(-36, -36), new Vector2(-18, -36), new Vector2(0, -36),
-                new Vector2(18, -36), new Vector2(36, -36), new Vector2(52, -35), new Vector2(66, -30) },
+        new[] { new Vector2(-66, 28), new Vector2(-51, 28), new Vector2(-37, 18), new Vector2(-22, 7), new Vector2(0, 4),
+                new Vector2(22, 7), new Vector2(37, 18), new Vector2(51, 28), new Vector2(66, 28) },
+        new[] { new Vector2(-66, -31), new Vector2(-52, -35), new Vector2(-45, -35), new Vector2(-22, -35), new Vector2(0, -35),
+                new Vector2(22, -35), new Vector2(45, -35), new Vector2(52, -35), new Vector2(66, -31) },
     };
 
     static Material floorMat, wallMat, lane, blue, red, lairMat, stoneMat, bushMat, barkMat, leafMat, glowGreen, glowOrange;
@@ -54,7 +54,7 @@ public static class BuildGreyboxMap
         glowGreen = Mat("GlowGreen", new Color(0.3f, 1f, 0.6f), true);
         glowOrange = Mat("GlowOrange", new Color(1f, 0.5f, 0.15f), true);
         blue = Mat("Blue", new Color(0.2f, 0.4f, 0.9f));
-        red = Mat("Red", new Color(0.9f, 0.25f, 0.25f));
+        red = Mat("Red", new Color(0.62f, 0.25f, 0.85f)); // the second team was purple on the 2013 map
 
         root = new GameObject("Map").transform;
         // The Ground object keeps its name and size: the fog and the minimap measure the map from it.
@@ -143,8 +143,8 @@ public static class BuildGreyboxMap
         Box("Wall_S", PrimitiveType.Cube, new Vector3(0, 1.5f, -HalfD - 0.5f), new Vector3(2 * HalfW + 2, 3, 1), wallMat);
         Box("Wall_W", PrimitiveType.Cube, new Vector3(-HalfW - 0.5f, 1.5f, 0), new Vector3(1, 3, 2 * HalfD + 2), wallMat);
         Box("Wall_E", PrimitiveType.Cube, new Vector3(HalfW + 0.5f, 1.5f, 0), new Vector3(1, 3, 2 * HalfD + 2), wallMat);
-        Box("Border_N", PrimitiveType.Cube, new Vector3(0, 1.2f, HalfD - 2f), new Vector3(2 * HalfW, 2.4f, 3f), wallMat);
-        Box("Border_S", PrimitiveType.Cube, new Vector3(0, 1.2f, -HalfD + 2f), new Vector3(2 * HalfW, 2.4f, 3f), wallMat);
+        Box("Border_N", PrimitiveType.Cube, new Vector3(0, 1.2f, HalfD - 4f), new Vector3(2 * HalfW, 2.4f, 8f), wallMat);
+        Box("Border_S", PrimitiveType.Cube, new Vector3(0, 1.2f, -HalfD + 4f), new Vector3(2 * HalfW, 2.4f, 8f), wallMat);
     }
 
     static void BuildLanes()
@@ -165,27 +165,41 @@ public static class BuildGreyboxMap
         }
     }
 
+    // Wall positions are measured from a top-down picture of the 2013 map (x mirrored for the east half).
     static void BuildJungleWalls()
     {
-        // Base ridge: an S-shaped wall closing off the inner side of each base, open at the top and bottom onto the lanes.
-        Vector3[] ridge = { V(-55, 19), V(-50, 11), V(-47, 2), V(-47, -8), V(-51, -17), V(-57, -23) };
+        // Base ridge: an S-shaped wall closing off the inner side of each base. The base opens onto the lanes only at its top and bottom corners.
+        Vector3[] ridge = { V(-63, 23), V(-52.5f, 11.5f), V(-46, 2.5f), V(-45, -5.5f), V(-51, -14.5f), V(-63, -20) };
         for (int i = 0; i < ridge.Length - 1; i++) WallPair(ridge[i], ridge[i + 1]);
 
-        // The alcove at the top centre (where the Vilemaw-style pit sits): side walls and a curved front with an opening in the middle.
-        WallPair(V(-27, 44), V(-24, 15));
+        // Vilemaw's lair at the top centre: a curved wall closes its front, and it is entered from the two sides, off the top lane.
+        WallPair(V(-30, 41), V(-29.5f, 26));
         for (float a = 195f; a < 345f - 0.01f; a += 15f)
         {
-            if (a >= 255f && a < 285f) continue; // the entrance
             float r1 = a * Mathf.Deg2Rad, r2 = (a + 15f) * Mathf.Deg2Rad;
             Wall(V(24f * Mathf.Cos(r1), 17f + 6f * Mathf.Sin(r1)), V(24f * Mathf.Cos(r2), 17f + 6f * Mathf.Sin(r2)));
         }
+        WallPair(V(-18, 35), V(-11, 29)); // rock inside the lair, either side of Vilemaw
 
-        // Centre jungle: a wall just under the top lane, two diagonals that meet near the bottom, and a row above the bottom lane.
-        Wall(V(-18, -3), V(-3, -3));
+        // Jungle between the lanes.
+        WallPair(V(-41, 11), V(-30, 4.5f));         // under the top lane, beside the wolves
+        WallPair(V(-37, 3), V(-37, -10));           // west of the altar
+        Wall(V(-18, -3), V(-3, -3));                // centre wall, with a gap in the middle
         Wall(V(3, -3), V(18, -3));
-        WallPair(V(-41, 2), V(-12, -20));
-        WallPair(V(-52, -26), V(-36, -26)); // starts clear of the base ridge so there is a proper gap
-        WallPair(V(-32, -26), V(-22, -26));
+        WallPair(V(-43, -15), V(-28, -19));         // long wall below the altar, in two parts
+        WallPair(V(-23, -20.5f), V(-11, -26));     // joins the row below, leaving a 5 m gap to the first part
+        WallPair(V(-56, -27), V(-45, -27));         // row just above the bottom lane
+        WallPair(V(-32, -27), V(-25, -27));
+        Wall(V(-10, -27), V(10, -27));
+    }
+
+    // A flat marker with no collider. (Unity's cylinder has a capsule collider, which turns a flat disc into a big
+    // invisible ball that blocks walking: that is why the altars could not be walked on.)
+    static GameObject Flat(string name, Vector3 pos, Vector3 scale, Material mat)
+    {
+        var go = Box(name, PrimitiveType.Cylinder, pos, scale, mat);
+        Object.DestroyImmediate(go.GetComponent<Collider>());
+        return go;
     }
 
     static void BuildJungleMarkers()
@@ -194,23 +208,22 @@ public static class BuildGreyboxMap
         foreach (int side in new[] { -1, 1 })
         {
             string team = TeamName[side < 0 ? 0 : 1];
-            Box($"Camp_{team}_Wolves", PrimitiveType.Cylinder, new Vector3(side * 43f, 0.1f, 12f), new Vector3(2, 0.1f, 2), lane);
-            Box($"Camp_{team}_Wraiths", PrimitiveType.Cylinder, new Vector3(side * 34f, 0.1f, -12f), new Vector3(2, 0.1f, 2), lane);
-            Box($"Camp_{team}_Golems", PrimitiveType.Cylinder, new Vector3(side * 24f, 0.1f, -19f), new Vector3(2, 0.1f, 2), lane);
+            Flat($"Camp_{team}_Wolves", new Vector3(side * 46.5f, 0.1f, 11f), new Vector3(2, 0.1f, 2), lane);
+            Flat($"Camp_{team}_Wraiths", new Vector3(side * 33f, 0.1f, -13f), new Vector3(2, 0.1f, 2), lane);
+            Flat($"Camp_{team}_Golems", new Vector3(side * 52f, 0.1f, -21f), new Vector3(2, 0.1f, 2), lane);
             camps += 3;
 
             // Altar: a stone ring with a disc inside that the game tints with the owner's colour.
             string name = side < 0 ? "Altar_West" : "Altar_East";
-            Box(name + "_Ring", PrimitiveType.Cylinder, new Vector3(side * 27f, 0.06f, 1f), new Vector3(7.5f, 0.06f, 7.5f), stoneMat);
-            Box(name, PrimitiveType.Cylinder, new Vector3(side * 27f, 0.1f, 1f), new Vector3(5.5f, 0.1f, 5.5f), lane);
+            Flat(name + "_Ring", new Vector3(side * 28f, 0.06f, -7f), new Vector3(7.5f, 0.06f, 7.5f), stoneMat);
+            Flat(name, new Vector3(side * 28f, 0.1f, -7f), new Vector3(5.5f, 0.1f, 5.5f), lane);
             altars++;
         }
-        // Vilemaw's lair fills the alcove at the top centre.
-        Box("Lair_Floor", PrimitiveType.Cube, new Vector3(0, 0.03f, 31f), new Vector3(44f, 0.06f, 26f), lairMat);
-        Box("Vilemaw", PrimitiveType.Cylinder, new Vector3(0, 0.1f, 29f), new Vector3(5, 0.1f, 5), lane);
+        Box("Lair_Floor", PrimitiveType.Cube, new Vector3(0, 0.03f, 27f), new Vector3(42f, 0.06f, 28f), lairMat);
+        Flat("Vilemaw", new Vector3(0, 0.1f, 21f), new Vector3(5, 0.1f, 5), lane);
         pits++;
         // Health relic in the middle of the jungle.
-        Box("Relic", PrimitiveType.Cylinder, new Vector3(0, 0.1f, -14f), new Vector3(2.5f, 0.1f, 2.5f), stoneMat);
+        Flat("Relic", new Vector3(0, 0.1f, -14.5f), new Vector3(2.5f, 0.1f, 2.5f), stoneMat);
     }
 
     // Brush: flat patches of tall grass. Units standing in one are hidden from enemies outside it (see Vision).
@@ -220,9 +233,10 @@ public static class BuildGreyboxMap
         float[][] spots =
         {
             new[] { 12f, -0.6f, 8f, 2.4f },   // under the top lane, either side of the centre gap
-            new[] { 36f, 7f, 4.5f, 4.5f },    // beside each altar
+            new[] { 21f, -9f, 4f, 4f },       // beside each altar
+            new[] { 7f, 31f, 4f, 3f },        // inside Vilemaw's lair
             new[] { 8f, -10f, 4f, 4f },       // beside the relic
-            new[] { 44f, -29.5f, 8f, 3f },    // above the bottom lane, near each outer turret
+            new[] { 50f, -29.6f, 8f, 2.6f },    // above the bottom lane, near each outer turret
         };
         foreach (var b in spots)
             foreach (int sx in new[] { -1, 1 })
@@ -232,7 +246,7 @@ public static class BuildGreyboxMap
                 for (int i = 0; i < 5; i++)
                     Decor(PrimitiveType.Cube, new Vector3(sx * b[0] + (i - 2) * b[2] * 0.18f, 0.6f, b[1] + ((i % 2) - 0.5f) * b[3] * 0.5f), new Vector3(0.15f, 1f, 0.15f), bushMat);
             }
-        Box($"Bush_{bushes++}", PrimitiveType.Cube, new Vector3(0f, 0.1f, -29.5f), new Vector3(10f, 0.2f, 3f), bushMat); // bottom lane centre
+        Box($"Bush_{bushes++}", PrimitiveType.Cube, new Vector3(0f, 0.1f, -29.6f), new Vector3(10f, 0.2f, 2.6f), bushMat); // bottom lane centre
     }
 
     // Shadow Isles mood: dim blue light, glowing altars and lair, dead trees and glowing mushrooms on the walls and borders.
@@ -253,17 +267,17 @@ public static class BuildGreyboxMap
             cam.clearFlags = CameraClearFlags.SolidColor;
             cam.backgroundColor = new Color(0.02f, 0.03f, 0.05f);
         }
-        Glow(new Vector3(-27f, 3f, 1f), new Color(0.3f, 1f, 0.6f), 12f);
-        Glow(new Vector3(27f, 3f, 1f), new Color(0.3f, 1f, 0.6f), 12f);
-        Glow(new Vector3(0f, 4f, 30f), new Color(0.5f, 1f, 0.3f), 22f);
-        Glow(new Vector3(0f, 3f, -14f), new Color(1f, 0.5f, 0.8f), 9f);
+        Glow(new Vector3(-28f, 3f, -7f), new Color(0.3f, 1f, 0.6f), 12f);
+        Glow(new Vector3(28f, 3f, -7f), new Color(0.3f, 1f, 0.6f), 12f);
+        Glow(new Vector3(0f, 4f, 23f), new Color(0.5f, 1f, 0.3f), 22f);
+        Glow(new Vector3(0f, 3f, -14.5f), new Color(1f, 0.5f, 0.8f), 9f);
         Glow(new Vector3(-62f, 5f, 0f), new Color(0.3f, 0.5f, 1f), 26f);
         Glow(new Vector3(62f, 5f, 0f), new Color(0.75f, 0.3f, 0.9f), 26f);
 
         // Trees and mushrooms stand only on top of walls and the borders, so they never block a path.
         var rng = new System.Random(2013);
         for (float x = -76f; x <= 76f; x += 8f)
-            foreach (float z in new[] { HalfD - 2f, -HalfD + 2f })
+            foreach (float z in new[] { HalfD - 3f, -HalfD + 3f, HalfD - 6.5f, -HalfD + 6.5f })
                 Tree(new Vector3(x + (float)rng.NextDouble() * 3f, 2.4f, z), 0.8f + (float)rng.NextDouble() * 0.6f);
         foreach (var w in root.GetComponentsInChildren<Transform>())
         {
@@ -306,25 +320,26 @@ public static class BuildGreyboxMap
     {
         var mat = t == 0 ? blue : red;
         string team = TeamName[t];
-        Box($"Base_{team}", PrimitiveType.Cube, new Vector3(side * 62f, 0.1f, 0), new Vector3(26f, 0.2f, 34f), mat);
-        Box($"Spawn_{team}", PrimitiveType.Cube, new Vector3(side * 68f, 0.25f, 0), new Vector3(4, 0.1f, 4), mat);
-        Box($"Shop_{team}", PrimitiveType.Cube, new Vector3(side * 68f, 0.25f, 11f), new Vector3(3, 0.1f, 3), mat); // the shop NPC stands here
+        // The base fills its end of the map: fountain and shop at the back, then the Nexus turret, then the Nexus.
+        Box($"Base_{team}", PrimitiveType.Cube, new Vector3(side * 65f, 0.1f, 0), new Vector3(30f, 0.2f, 34f), mat);
+        Box($"Spawn_{team}", PrimitiveType.Cube, new Vector3(side * 75f, 0.25f, 0), new Vector3(4, 0.1f, 4), mat);
+        Box($"Shop_{team}", PrimitiveType.Cube, new Vector3(side * 75f, 0.25f, 9f), new Vector3(3, 0.1f, 3), mat); // the shop NPC stands here
         Box($"Nexus_{team}", PrimitiveType.Cylinder, new Vector3(side * 58f, 2, 0), new Vector3(4, 2, 4), mat);
         nexuses++;
-        Box($"Tower_{team}_Nexus", PrimitiveType.Cylinder, new Vector3(side * 53f, 1.5f, 0), new Vector3(1.5f, 1.5f, 1.5f), mat); // the last turret, in front of the Nexus
+        Box($"Tower_{team}_Nexus", PrimitiveType.Cylinder, new Vector3(side * 66f, 1.5f, 0), new Vector3(1.5f, 1.5f, 1.5f), mat);
         towers++;
 
         for (int i = 0; i < 2; i++)
         {
-            // Lane points run blue -> red: the outer tower is on the third point from this team's end, the inner one near its base.
+            // The outer turret stands on the lane (third point from this team's end). The inner turret and the inhibitor
+            // stand in the base corner where the lane leaves it.
             var pts = lanePts[i];
             Vector3 outer = side < 0 ? pts[2] : pts[6];
-            Vector3 inner = side < 0 ? (pts[0] + pts[1]) / 2f : (pts[8] + pts[7]) / 2f;
+            float zs = i == 0 ? 1f : -1f;
             Box($"Tower_{team}_{LaneName[i]}_Outer", PrimitiveType.Cylinder, new Vector3(outer.x, 1.5f, outer.z), new Vector3(1.5f, 1.5f, 1.5f), mat);
-            Box($"Tower_{team}_{LaneName[i]}_Inner", PrimitiveType.Cylinder, new Vector3(inner.x, 1.5f, inner.z), new Vector3(1.5f, 1.5f, 1.5f), mat);
+            Box($"Tower_{team}_{LaneName[i]}_Inner", PrimitiveType.Cylinder, new Vector3(side * 71f, 1.5f, zs * 24.5f), new Vector3(1.5f, 1.5f, 1.5f), mat);
             towers += 2;
-            // The inhibitor sits beside the lane's first point (not on it, so minions do not walk into it).
-            Box($"Inhibitor_{team}_{LaneName[i]}", PrimitiveType.Sphere, new Vector3(side * 63f, 1.3f, i == 0 ? 21f : -25f), new Vector3(2.6f, 2.6f, 2.6f), mat);
+            Box($"Inhibitor_{team}_{LaneName[i]}", PrimitiveType.Sphere, new Vector3(side * 74.5f, 1.3f, zs * 19.5f), new Vector3(2.6f, 2.6f, 2.6f), mat);
             inhibitors++;
         }
     }

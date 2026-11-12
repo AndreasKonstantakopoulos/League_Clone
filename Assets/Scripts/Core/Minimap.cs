@@ -99,7 +99,7 @@ public class Minimap : MonoBehaviour
         {
             if (!u.Alive || !Vision.Sees(viewer, u)) continue; // only what you can see
             float s;
-            Color c = u.Team == Team.Neutral ? new Color(1f, 0.85f, 0.3f) : u.Team == Team.Blue ? new Color(0.35f, 0.65f, 1f) : new Color(1f, 0.35f, 0.3f);
+            Color c = u.Team == Team.Neutral ? new Color(1f, 0.85f, 0.3f) : u.Team == Team.Blue ? new Color(0.35f, 0.65f, 1f) : new Color(0.72f, 0.38f, 1f);
             switch (u.Kind)
             {
                 case UnitKind.Champion: s = 9f; break;

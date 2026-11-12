@@ -74,3 +74,7 @@ The host simulates everything, so a joining player normally sees everything abou
 ### Ability tooltips
 
 Hover an ability for: its key and name with the rank, cooldown, mana and range, a one-sentence summary of what it does, the live damage/heal/shield numbers (with the part that comes from your AD/AP), and per-rank tables with the current rank highlighted. The summary is written with `.Says("...")` in `Content.cs`; if an ability has none, one is generated from its effects.
+
+### Map notes (after the second pass)
+
+Wall, camp, altar, turret and inhibitor positions are measured from a top-down picture of the 2013 map: the base opens onto the lanes only at its top and bottom corners (inner turret and inhibitor stand there), the fountain is at the back with the Nexus turret between it and the Nexus, Vilemaw's lair is entered from its two sides, and the altars sit lower in the jungle with the wraiths beside them. The second team is shown as Purple (it is still `Team.Red` in code). Flat markers (altars, camps, relic) have no collider, so they can be walked on.

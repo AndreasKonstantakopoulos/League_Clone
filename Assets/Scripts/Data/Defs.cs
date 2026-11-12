@@ -3,6 +3,12 @@ using System.Collections.Generic;
 using UnityEngine;
 
 public enum Team { Blue, Red, Neutral } // Neutral = jungle monsters
+// The second team is called Red in code but shown as Purple, as on the 2013 map.
+public static class TeamText
+{
+    public static string Name(Team t) { return t == Team.Red ? "Purple" : t.ToString(); }
+}
+
 public enum Role { Tank, Bruiser, Assassin, Marksman, Mage, Support }
 public enum Shape { Self, SelfArea, TargetEnemy, TargetAlly, PointArea, Skillshot }
 public enum EffectType { Damage, Heal, Shield, Stun, Root, Slow, Silence, Dash, Knockback, Pull, Buff }

@@ -143,7 +143,7 @@ public class ChampSelect : MonoBehaviour
                 GUILayout.EndHorizontal();
             }
             foreach (var p in Net.Players)
-                GUILayout.Label($"{(p.Id == Net.MyId ? "You" : "Player " + p.Id)}  -  {p.Team}  -  {Content.Champions[p.ChampIndex].Name}");
+                GUILayout.Label($"{(p.Id == Net.MyId ? "You" : "Player " + p.Id)}  -  {TeamText.Name(p.Team)}  -  {Content.Champions[p.ChampIndex].Name}");
             GUILayout.FlexibleSpace();
             GUILayout.BeginHorizontal();
             if (GUILayout.Button("Leave", GUILayout.Height(40f), GUILayout.Width(100f))) pendingLeave = true;

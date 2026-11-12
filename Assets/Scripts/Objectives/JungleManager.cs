@@ -198,7 +198,7 @@ public class JungleManager : MonoBehaviour
         ApplyAltarBonuses();
         Vfx.Ring(a.Pos, 3.5f, Vfx.TeamColor(taker));
         int n = AltarsOf(taker);
-        GameManager.I.Announce($"{taker} team captured the {a.Name}!  " +
+        GameManager.I.Announce($"{TeamText.Name(taker)} team captured the {a.Name}!  " +
             (n >= 2 ? "Both altars: +10% attack damage and ability power" : $"+{Rules.AltarGoldPerKill:0} gold per minion and monster kill"));
     }
 
@@ -268,7 +268,7 @@ public class JungleManager : MonoBehaviour
                 }
             ActiveBuffs.RemoveAll(b => b.Until <= Time.time);
             ActiveBuffs.Add(new ActiveBuff { Name = o.BuffName, Team = team, Until = Time.time + o.BuffSeconds });
-            GameManager.I.Announce($"{team} team slew {o.Name}!  {o.BuffName} for {o.BuffSeconds:0}s, +{o.TeamGold:0} gold each");
+            GameManager.I.Announce($"{TeamText.Name(team)} team slew {o.Name}!  {o.BuffName} for {o.BuffSeconds:0}s, +{o.TeamGold:0} gold each");
             return;
         }
     }

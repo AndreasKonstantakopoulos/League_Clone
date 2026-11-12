@@ -242,7 +242,7 @@ public class GameManager : MonoBehaviour
         go.name = $"Minion_{team}_{lane}";
         go.transform.localScale = Vector3.one * scale;
         Destroy(go.GetComponent<Collider>());
-        go.GetComponent<Renderer>().material.color = team == Team.Blue ? new Color(0.4f, 0.6f, 1f) : new Color(1f, 0.45f, 0.45f);
+        go.GetComponent<Renderer>().material.color = team == Team.Blue ? new Color(0.4f, 0.6f, 1f) : new Color(0.72f, 0.45f, 1f);
         go.transform.position = Snap(path[0]);
 
         var agent = go.AddComponent<NavMeshAgent>();
@@ -273,7 +273,7 @@ public class GameManager : MonoBehaviour
             if (victim.Kind == UnitKind.Minion || victim.Kind == UnitKind.Monster) k.Gold += Jungle.AltarGold(k.U.Team); // altar bonus
         }
         if (victim.Kind == UnitKind.Inhibitor)
-            Announce($"{victim.Team} team lost an inhibitor! Super minions will push that lane");
+            Announce($"{TeamText.Name(victim.Team)} team lost an inhibitor! Super minions will push that lane");
         foreach (var c in Champion.All)
             if (c.U.Team != victim.Team && c.U.Alive && c.U.DistTo(victim.transform.position) < 25f)
                 c.GainXp((int)victim.XpBounty);

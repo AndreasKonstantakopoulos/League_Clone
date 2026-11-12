@@ -5,7 +5,7 @@ using UnityEngine;
 // Button clicks are queued and applied in Update, because changing controls mid-OnGUI breaks IMGUI layout.
 public class Hud : MonoBehaviour
 {
-    static readonly Color BlueCol = new Color(0.3f, 0.55f, 1f), RedCol = new Color(1f, 0.35f, 0.35f), NeutralCol = new Color(1f, 0.85f, 0.3f);
+    static readonly Color BlueCol = new Color(0.3f, 0.55f, 1f), RedCol = new Color(0.72f, 0.38f, 1f), NeutralCol = new Color(1f, 0.85f, 0.3f);
 
     GUIStyle tipStyle;
     bool shopOpen;
@@ -122,9 +122,9 @@ public class Hud : MonoBehaviour
             sb.AppendLine(o.IsAlive ? $"{o.Name}: alive" : $"{o.Name}: spawns in {Mathf.Max(0f, o.NextSpawn - gm.Clock):0}s");
         foreach (var a in gm.Jungle.Altars)
         {
-            string owner = a.Owner == Team.Neutral ? "neutral" : a.Owner.ToString();
+            string owner = a.Owner == Team.Neutral ? "neutral" : TeamText.Name(a.Owner);
             string state = gm.Clock < a.LockedUntil ? $"locked {a.LockedUntil - gm.Clock:0}s"
-                         : a.Progress > 0f ? $"{a.Capturer} capturing {a.Progress / Rules.AltarCaptureTime * 100f:0}%" : "open";
+                         : a.Progress > 0f ? $"{TeamText.Name(a.Capturer)} capturing {a.Progress / Rules.AltarCaptureTime * 100f:0}%" : "open";
             sb.AppendLine($"{a.Name}: {owner} ({state})");
         }
         sb.AppendLine(gm.Jungle.RelicUp ? "Health relic: up" : "Health relic: taken");
