@@ -20,6 +20,30 @@ public class Champion : MonoBehaviour
     public float RespawnAt;
     public bool Mirror;      // client-side copy: shows what the host reports and sends commands instead of acting
     public ulong OwnerId;    // which connected player controls this champion
+    string castName = "Buff";
+    public List<Unit.Status> MirrorStatuses = new List<Unit.Status>(); // clients: sent by the host
+
+    // Everything currently affecting this champion, for the buff bar: timed buffs, shields, crowd control,
+    // the passive while it is active, altar bonuses and the fountain.
+    public List<Unit.Status> Statuses()
+    {
+        if (Mirror) return MirrorStatuses;
+        var o = new List<Unit.Status>();
+        U.CollectStatuses(o);
+        if (PassiveStacks > 0)
+            o.Add(new Unit.Status { Name = Def.Passive.Name + (PassiveStacks > 1 ? $" x{PassiveStacks}" : ""), Desc = Def.Passive.Desc, Left = -1f });
+        var gm = GameManager.I;
+        int altars = gm != null && gm.Jungle != null ? gm.Jungle.AltarsOf(U.Team) : 0;
+        if (altars >= 1)
+            o.Add(new Unit.Status
+            {
+                Name = altars >= 2 ? "Both altars" : "Altar",
+                Desc = $"+{Rules.AltarGoldPerKill:0} gold per minion and monster kill" + (altars >= 2 ? ", +10% attack damage and ability power" : ""), Left = -1f
+            });
+        if (!Dead && gm != null && AtBase) o.Add(new Unit.Status { Name = "Fountain", Desc = "Quickly restores health and mana", Left = -1f });
+        return o;
+    }
+
     public int PassiveStacks; // for the HUD: stacks, or 0/1 for passives that are simply on or off
 
     float lastAction, passiveTimer, lastHit;   // lastAction: last attack or cast (stealth passive); lastHit: last focused attack
@@ -498,11 +522,12 @@ public class Champion : MonoBehaviour
         if (a.Shape == Shape.PointArea && dist > a.Range) { point = pos + dir * a.Range; dist = a.Range; }
 
         Recalling = false;
+        castName = a.Name; // buffs this cast hands out carry the ability's name
         NoteAction();
         if (Def.Passive.Kind == PassiveKind.Spellblade) spellCharged = true;
         else if (Def.Passive.Kind == PassiveKind.Spellrunner) // casting makes you faster for a moment
         {
-            U.AddBuff(Fx.St(ms: Def.Passive.A), Def.Passive.B);
+            U.AddBuff(Fx.St(ms: Def.Passive.A), Def.Passive.B, Def.Passive.Name);
             spellrunUntil = Time.time + Def.Passive.B;
         }
         U.Mana -= a.Mana;
@@ -581,7 +606,7 @@ public class Champion : MonoBehaviour
             case EffectType.Slow: t.Slow(amt, e.Duration); break;
             case EffectType.Knockback: t.Displace(t.transform.position - transform.position, amt, 0.2f); break;
             case EffectType.Pull: t.Displace(transform.position - t.transform.position, Mathf.Min(amt, t.DistTo(transform.position) - 1f), 0.2f); break;
-            case EffectType.Buff: t.AddBuff(e.Buff, e.Duration); break;
+            case EffectType.Buff: t.AddBuff(e.Buff, e.Duration, castName); break;
         }
     }
 

@@ -78,3 +78,7 @@ Hover an ability for: its key and name with the rank, cooldown, mana and range, 
 ### Map notes (after the second pass)
 
 Wall, camp, altar, turret and inhibitor positions are measured from a top-down picture of the 2013 map: the base opens onto the lanes only at its top and bottom corners (inner turret and inhibitor stand there), the fountain is at the back with the Nexus turret between it and the Nexus, Vilemaw's lair is entered from its two sides, and the altars sit lower in the jungle with the wraiths beside them. The second team is shown as Purple (it is still `Team.Red` in code). Flat markers (altars, camps, relic) have no collider, so they can be walked on.
+
+### Buff bar
+
+Above the ability bar there is one small icon per buff or debuff on your champion: timed buffs from abilities (named after the ability), shields, stuns, roots, silences, slows, your passive while it is active, altar bonuses, Vilemaw's crest, the relic's speed and the fountain. Green frame = buff, red = debuff; the number is the seconds left; hover an icon for its name and effect. The skill-point count is a yellow badge above the portrait.

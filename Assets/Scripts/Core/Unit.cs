@@ -32,7 +32,21 @@ public class Unit : MonoBehaviour
     public float PowerMult = 1f; // multiplies attack damage and ability power (holding both altars)
     public NavMeshAgent Agent;
 
-    struct Buff { public Stats S; public float Until; }
+    struct Buff { public Stats S; public float Until; public string Name; }
+
+    // One buff or debuff as shown on the HUD. Left < 0 means it has no timer.
+    public struct Status { public string Name, Desc; public float Left; public bool Bad; }
+
+    public void CollectStatuses(List<Status> o)
+    {
+        float now = Time.time;
+        foreach (var b in buffs) o.Add(new Status { Name = b.Name, Desc = b.S.ToString(), Left = b.Until - now });
+        if (Shield > 0f) o.Add(new Status { Name = "Shield", Desc = $"Absorbs the next {Shield:0} damage", Left = shieldUntil - now });
+        if (Stunned) o.Add(new Status { Name = "Stunned", Desc = "Cannot move, attack or cast", Left = stunUntil - now, Bad = true });
+        if (Rooted) o.Add(new Status { Name = "Rooted", Desc = "Cannot move", Left = rootUntil - now, Bad = true });
+        if (Silenced) o.Add(new Status { Name = "Silenced", Desc = "Cannot cast abilities", Left = silenceUntil - now, Bad = true });
+        if (now < slowUntil) o.Add(new Status { Name = "Slowed", Desc = $"Move speed reduced by {slowAmt * 100f:0}%", Left = slowUntil - now, Bad = true });
+    }
     readonly List<Buff> buffs = new List<Buff>();
     float stunUntil, rootUntil, silenceUntil, slowUntil, slowAmt, shieldUntil;
 
@@ -158,10 +172,10 @@ public class Unit : MonoBehaviour
         slowUntil = Time.time + d;
     }
 
-    public void AddBuff(Stats s, float dur)
+    public void AddBuff(Stats s, float dur, string name = "Buff")
     {
         if (!Alive || IsStructure) return;
-        buffs.Add(new Buff { S = s, Until = Time.time + dur });
+        buffs.Add(new Buff { S = s, Until = Time.time + dur, Name = name });
         Recalc();
     }
 

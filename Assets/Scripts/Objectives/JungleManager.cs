@@ -222,7 +222,7 @@ public class JungleManager : MonoBehaviour
             if (!c.U.Alive || c.U.DistTo(relicPos) > 2f) continue;
             c.U.Heal(c.U.Total.Health * 0.2f);
             c.U.Mana = Mathf.Min(c.U.Total.Mana, c.U.Mana + c.U.Total.Mana * 0.2f);
-            c.U.AddBuff(St(ms: 2f), 4f);
+            c.U.AddBuff(St(ms: 2f), 4f, "Relic speed");
             Vfx.Ring(relicPos, 2f, new Color(1f, 0.45f, 0.75f));
             RelicUp = false;
             relicNext = now + Rules.RelicRespawn;
@@ -263,7 +263,7 @@ public class JungleManager : MonoBehaviour
             foreach (var c in Champion.All)
                 if (c.U.Team == team)
                 {
-                    c.U.AddBuff(o.Buff, o.BuffSeconds); // shortcut: champions that are dead right now miss the buff
+                    c.U.AddBuff(o.Buff, o.BuffSeconds, o.BuffName); // shortcut: champions that are dead right now miss the buff
                     c.Gold += o.TeamGold;
                 }
             ActiveBuffs.RemoveAll(b => b.Until <= Time.time);

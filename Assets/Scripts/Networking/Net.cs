@@ -503,6 +503,13 @@ public static class Net
             w.WriteValueSafe(s.Health); w.WriteValueSafe(s.Mana); w.WriteValueSafe(s.AD); w.WriteValueSafe(s.AP); w.WriteValueSafe(s.Armor);
             w.WriteValueSafe(s.MR); w.WriteValueSafe(s.AttackSpeed); w.WriteValueSafe(s.MoveSpeed); w.WriteValueSafe(s.HealthRegen);
             w.WriteValueSafe(s.ManaRegen); w.WriteValueSafe(s.CDR);
+            var statuses = ch.Statuses();
+            w.WriteValueSafe((byte)Mathf.Min(statuses.Count, 20));
+            for (int i = 0; i < statuses.Count && i < 20; i++)
+            {
+                w.WriteValueSafe(statuses[i].Name ?? ""); w.WriteValueSafe(statuses[i].Desc ?? "");
+                w.WriteValueSafe(statuses[i].Left); w.WriteValueSafe((byte)(statuses[i].Bad ? 1 : 0));
+            }
         });
     }
 
@@ -623,8 +630,16 @@ public static class Net
         r.ReadValueSafe(out s.Health); r.ReadValueSafe(out s.Mana); r.ReadValueSafe(out s.AD); r.ReadValueSafe(out s.AP); r.ReadValueSafe(out s.Armor);
         r.ReadValueSafe(out s.MR); r.ReadValueSafe(out s.AttackSpeed); r.ReadValueSafe(out s.MoveSpeed); r.ReadValueSafe(out s.HealthRegen);
         r.ReadValueSafe(out s.ManaRegen); r.ReadValueSafe(out s.CDR);
+        r.ReadValueSafe(out byte statusCount);
+        var statuses = new List<Unit.Status>();
+        for (int i = 0; i < statusCount; i++)
+        {
+            r.ReadValueSafe(out string sn); r.ReadValueSafe(out string sd); r.ReadValueSafe(out float left); r.ReadValueSafe(out byte bad);
+            statuses.Add(new Unit.Status { Name = sn, Desc = sd, Left = left, Bad = bad != 0 });
+        }
         var ch = Champion.Local;
         if (!IsClientOnly || ch == null) return;
+        ch.MirrorStatuses = statuses;
         ch.U.Total = s;
         ch.U.Mana = mana;
         ch.ApplyMirror(level, xp, sp, gold, ranks, cd, items, dead != 0, respawnLeft, recall, passive);

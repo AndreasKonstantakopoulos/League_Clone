@@ -212,9 +212,10 @@ public class Hud : MonoBehaviour
 
         if (c.Recalling)
         {
-            GUI.Label(new Rect(x + 96f, y - 44f, 400f, 20f), "Recalling... (move, cast or take damage to cancel)");
-            LabeledBar(new Rect(x + 96f, y - 22f, 288f, 8f), c.RecallProgress, new Color(0.6f, 0.85f, 1f), null);
+            GUI.Label(new Rect(x + 96f, y - 84f, 400f, 20f), "Recalling... (move, cast or take damage to cancel)");
+            LabeledBar(new Rect(x + 96f, y - 62f, 288f, 8f), c.RecallProgress, new Color(0.6f, 0.85f, 1f), null);
         }
+        DrawStatuses(c, x + 100f, y - 46f);
 
         Fill(new Rect(x, y, w, h), new Color(0.05f, 0.06f, 0.09f, 0.9f));
 
@@ -223,8 +224,15 @@ public class Hud : MonoBehaviour
         Fill(new Rect(x + 56f, y + 70f, 26f, 18f), new Color(0f, 0f, 0f, 0.9f));
         GUI.Label(new Rect(x + 56f, y + 70f, 26f, 18f), c.Level.ToString(), numStyle);
 
-        if (c.SkillPoints > 0)
-            GUI.Label(new Rect(x + 96f, y + 2f, 280f, 18f), $"<b>{c.SkillPoints}</b> skill point{(c.SkillPoints > 1 ? "s" : "")} to spend", smallStyle);
+        if (c.SkillPoints > 0) // a yellow badge above the portrait, clear of the + buttons
+        {
+            var badge = new Rect(x, y - 26f, 92f, 22f);
+            Fill(badge, new Color(1f, 0.82f, 0.25f));
+            var old = numStyle.normal.textColor;
+            numStyle.normal.textColor = Color.black;
+            GUI.Label(badge, $"{c.SkillPoints} skill point{(c.SkillPoints > 1 ? "s" : "")}", numStyle);
+            numStyle.normal.textColor = old;
+        }
 
         DrawPassive(c, new Rect(x + 96f, y + 36f, 40f, 40f));
         for (int i = 0; i < 4; i++) DrawAbility(c, i, new Rect(x + 144f + i * 72f, y + 24f, 64f, 64f));
@@ -261,6 +269,26 @@ public class Hud : MonoBehaviour
         {
             Fill(new Rect(x, y, w, h), new Color(0f, 0f, 0f, 0.6f));
             GUI.Label(new Rect(x, y, w, h), $"Respawning in {Mathf.Max(0f, c.RespawnAt - Time.time):0}s", cdStyle);
+        }
+    }
+
+    // Buff bar: one small icon per buff or debuff, above the abilities. Green frame = buff, red = debuff.
+    // The number is the seconds left; hover for the name and what it does.
+    void DrawStatuses(Champion c, float x, float y)
+    {
+        var list = c.Statuses();
+        for (int i = 0; i < list.Count && i < 16; i++)
+        {
+            var s = list[i];
+            var r = new Rect(x + i * 34f, y, 30f, 30f);
+            Fill(r, s.Bad ? new Color(0.9f, 0.25f, 0.25f) : new Color(0.3f, 0.85f, 0.4f));
+            int hash = 0;
+            foreach (char ch in s.Name) hash = hash * 31 + ch;
+            Fill(Inset(r, 2f), Color.HSVToRGB((hash & 0xFF) / 255f, 0.5f, s.Bad ? 0.35f : 0.5f)); // each buff keeps its own colour
+            GUI.Label(new Rect(r.x, r.y, r.width, 18f), Initials(s.Name), numStyle);
+            if (s.Left >= 0f) GUI.Label(new Rect(r.x, r.y + 15f, r.width, 14f), s.Left >= 10f ? s.Left.ToString("0") : s.Left.ToString("0.0"), nameStyle);
+            string time = s.Left >= 0f ? $"   <color=#9aa>{s.Left:0.0}s left</color>" : "";
+            GUI.Label(r, new GUIContent("", $"<b>{s.Name}</b>  <color={(s.Bad ? "#ff7070" : "#7fe08a")}>{(s.Bad ? "debuff" : "buff")}</color>{time}\n{s.Desc}"));
         }
     }
 
