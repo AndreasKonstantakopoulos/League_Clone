@@ -317,9 +317,23 @@ public static class Vfx
         Vector3 from = At(caster.transform.position, 1f), to = At(target.transform.position, 1f);
         Vector3 dir = (to - from).normalized;
         var pale = new Color(1f, 0.95f, 0.75f);
-        if (melee) Sparks(from + dir * 0.8f, Quaternion.LookRotation(dir), ParticleSystemShapeType.Cone, 35f, 8, 8f, 12f, 0.18f, Color.Lerp(pale, accent, 0.35f), 0.07f);
-        else Projectile(from, dir, Vector3.Distance(from, to), 45f, Color.Lerp(pale, accent, 0.5f), 0.22f, 10f);
-        Sparks(to, Quaternion.identity, ParticleSystemShapeType.Sphere, 0f, 5, 2f, 5f, 0.2f, pale, 0.08f);
+        if (caster.Kind != UnitKind.Champion) // minions and monsters keep the small version
+        {
+            if (melee) Sparks(from + dir * 0.8f, Quaternion.LookRotation(dir), ParticleSystemShapeType.Cone, 35f, 8, 8f, 12f, 0.18f, Color.Lerp(pale, accent, 0.35f), 0.07f);
+            else Projectile(from, dir, Vector3.Distance(from, to), 45f, Color.Lerp(pale, accent, 0.5f), 0.22f, 10f);
+            Sparks(to, Quaternion.identity, ParticleSystemShapeType.Sphere, 0f, 5, 2f, 5f, 0.2f, pale, 0.08f);
+            return;
+        }
+        // Champions: clearly visible, in the champion's own colour, but still smaller than an ability.
+        Color c = Color.Lerp(pale, accent, 0.7f);
+        if (melee)
+        {
+            Sparks(from + dir * 0.7f, Quaternion.LookRotation(dir), ParticleSystemShapeType.Cone, 50f, 18, 9f, 15f, 0.25f, c, 0.14f); // wide swing
+            Line(from + dir * 0.4f, to, Hot(c), 0.18f, 0.15f);                                                                       // the strike itself
+        }
+        else Projectile(from, dir, Vector3.Distance(from, to), 40f, c, 0.45f, 18f); // bigger head, denser trail
+        Glow(to, c, 1.3f, 0.14f);                                                   // flash on the target
+        Sparks(to, Quaternion.identity, ParticleSystemShapeType.Sphere, 0f, 12, 4f, 9f, 0.28f, c, 0.12f);
     }
 
     // The cast itself, then a reaction on everything it hit. `dist` is how far the caster is aiming.
