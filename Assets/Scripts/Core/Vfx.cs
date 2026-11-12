@@ -309,10 +309,18 @@ public static class Vfx
         });
     }
 
+    // Plays the attack swing on a champion's model (minions and monsters have none).
+    static void Swing(Unit caster)
+    {
+        var anim = caster.GetComponentInChildren<ModelAnim>();
+        if (anim != null) anim.Attack();
+    }
+
     // Auto attack: melee = a short slash, ranged = a small bolt. Deliberately small and pale next to abilities.
     public static void Auto(Unit caster, Color accent, bool melee, Unit target)
     {
         if (Net.IsHost) Net.FxAuto(caster, accent, melee, target);
+        Swing(caster);
         if (!Visible(caster.transform.position) && !Visible(target.transform.position)) return;
         Vector3 from = At(caster.transform.position, 1f), to = At(target.transform.position, 1f);
         Vector3 dir = (to - from).normalized;
@@ -340,6 +348,7 @@ public static class Vfx
     public static void Cast(AbilityDef a, Unit caster, Color accent, Vector3 pos, Vector3 dir, Vector3 point, float dist, List<Unit> hit, bool shake)
     {
         if (Net.IsHost) Net.FxCast(a, caster, pos, dir, point, dist, hit);
+        Swing(caster);
         if (!Visible(pos) && !Visible(point)) return;
         Color c = a.Tint ?? ColorOf(a);
         float p = a.Power;

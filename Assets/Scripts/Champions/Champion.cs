@@ -50,9 +50,18 @@ public class Champion : MonoBehaviour
     Unit focusTarget;
     bool spellCharged, aegisUsed;
     float frenzyUntil, spellrunUntil;
-    Renderer body;
-    Material normalMat, ghostMat;
-    bool isGhost;
+    Material[] normalMats;
+    Material ghostMat;
+    bool isGhost, mirrorShown = true;
+
+    // Replaces the plain capsule with the champion's model (see ChampionModel).
+    void SetupModel()
+    {
+        GetComponent<Renderer>().enabled = false; // the capsule stays only as the invisible root
+        var model = ChampionModel.Build(transform, Def);
+        renders = model.GetComponentsInChildren<Renderer>();
+        normalMats = System.Array.ConvertAll(renders, r => r.sharedMaterial);
+    }
 
     Unit target;
     bool moveOrder;
@@ -86,10 +95,7 @@ public class Champion : MonoBehaviour
         U.Thorns = def.Passive.Kind == PassiveKind.Thorns ? def.Passive.A : 0f;
         U.GoldBounty = 300f;
         U.XpBounty = 150f;
-        renders = GetComponentsInChildren<Renderer>();
-        GetComponent<Renderer>().material.color = def.Color;
-        body = GetComponent<Renderer>();
-        normalMat = body.sharedMaterial;
+        SetupModel();
         RecalcStats();
         All.Add(this);
         if (local) Local = this;
@@ -102,16 +108,14 @@ public class Champion : MonoBehaviour
         U = u;
         OwnerId = owner;
         Mirror = true;
-        renders = GetComponentsInChildren<Renderer>();
-        body = GetComponent<Renderer>();
-        normalMat = body.sharedMaterial;
+        SetupModel();
         if (!local) return;
         Local = this;
         var cam = Camera.main;
         if (cam != null && cam.GetComponent<CameraFollow>() == null) cam.gameObject.AddComponent<CameraFollow>().Target = transform;
     }
 
-    public void SetMirrorVisible(bool visible) { foreach (var r in renders) r.enabled = visible; }
+    public void SetMirrorVisible(bool visible) { mirrorShown = visible; }
 
     public void ApplyMirror(int level, int xp, int skillPoints, float gold, int[] ranks, float[] cdLeft, List<string> items,
         bool dead, float respawnLeft, float recall, int passiveStacks)
@@ -304,19 +308,21 @@ public class Champion : MonoBehaviour
     // Invisible champions: enemies see nothing, you and your team see a faint ghost. Also keeps dead champions hidden.
     void ApplyStealthLook()
     {
-        if (body == null) return;
+        if (renders == null) return;
         var viewer = Local != null ? Local.U.Team : Team.Blue;
         bool stealth = U.Stealthed && U.Alive;
-        bool ally = U.Team == viewer;
         bool ghost = stealth && Vision.Sees(viewer, U); // allies always, enemies only while a tower or the Nexus reveals them: drawn see-through
         if (ghost != isGhost)
         {
             if (ghostMat == null)
                 ghostMat = new Material(Shader.Find("Sprites/Default")) { color = new Color(Def.Color.r, Def.Color.g, Def.Color.b, 0.35f) };
-            body.sharedMaterial = ghost ? ghostMat : normalMat;
+            for (int i = 0; i < renders.Length; i++) renders[i].sharedMaterial = ghost ? ghostMat : normalMats[i];
             isGhost = ghost;
         }
-        body.enabled = U.Alive && Vision.Sees(viewer, U); // out of sight, or invisible to the other team, means not drawn
+        // dead, out of sight, or invisible to the other team means not drawn
+        bool show = U.Alive && !Dead && mirrorShown && Vision.Sees(viewer, U);
+        if (renders.Length > 0 && renders[0].enabled != show)
+            foreach (var r in renders) r.enabled = show;
     }
 
     // B channels for RecallTime seconds, then teleports home. Moving, casting, taking damage or being stunned cancels it.
@@ -689,7 +695,6 @@ public class Champion : MonoBehaviour
         target = null;
         moveOrder = false;
         RespawnAt = Time.time + 4f + 2f * Level;
-        foreach (var r in renders) r.enabled = false;
         U.Agent.enabled = false;
     }
 
@@ -702,6 +707,5 @@ public class Champion : MonoBehaviour
         U.Health = U.Total.Health;
         U.Mana = U.Total.Mana;
         U.Shield = 0f;
-        foreach (var r in renders) r.enabled = true;
     }
 }

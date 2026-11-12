@@ -82,3 +82,9 @@ Wall, camp, altar, turret and inhibitor positions are measured from a top-down p
 ### Buff bar
 
 Above the ability bar there is one small icon per buff or debuff on your champion: timed buffs from abilities (named after the ability), shields, stuns, roots, silences, slows, your passive while it is active, altar bonuses, Vilemaw's crest, the relic's speed and the fountain. Green frame = buff, red = debuff; the number is the seconds left; hover an icon for its name and effect. The skill-point count is a yellow badge above the portrait.
+
+### Character models
+
+Champions are no longer capsules. Each one gets a figure built from basic shapes in its own colour, with gear that shows its role: tank (shield, sword, helmet), bruiser (axe), assassin (hood, cloak, daggers), marksman (bow, quiver), mage (robe, hat, orb staff), support (robe, halo, ring staff). Legs and arms swing while walking and the weapon arm swings on attacks and casts. The same model spins in champion select.
+
+To use a real model, save a prefab named exactly like the champion (e.g. `Orrin Ironwall.prefab`) in `Assets/Resources/Models/`. It replaces the placeholder automatically. The prefab should stand with its feet at its origin, face +Z and be about 2 m tall. If it has an Animator, the game sets a float parameter `Speed` (metres per second) and fires a trigger `Attack`, when the controller has them. Code: `Assets/Scripts/Champions/ChampionModel.cs` and `ModelAnim.cs`.

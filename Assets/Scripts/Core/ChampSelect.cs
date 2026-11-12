@@ -20,13 +20,8 @@ public class ChampSelect : MonoBehaviour
         floor.transform.localScale = new Vector3(3f, 0.05f, 3f);
         floor.GetComponent<Renderer>().material.color = new Color(0.2f, 0.22f, 0.28f);
 
-        preview = GameObject.CreatePrimitive(PrimitiveType.Capsule);
+        preview = new GameObject("Preview"); // the selected champion's model is built under this and spins
         preview.transform.position = new Vector3(0f, 1f, 0f);
-        var visor = GameObject.CreatePrimitive(PrimitiveType.Cube); // makes the spin visible
-        visor.transform.SetParent(preview.transform, false);
-        visor.transform.localPosition = new Vector3(0f, 0.45f, 0.4f);
-        visor.transform.localScale = new Vector3(0.6f, 0.2f, 0.2f);
-        visor.GetComponent<Renderer>().material.color = Color.black;
 
         var cam = Camera.main;
         if (cam != null)
@@ -40,7 +35,8 @@ public class ChampSelect : MonoBehaviour
     void Select(ChampionDef d)
     {
         sel = d;
-        preview.GetComponent<Renderer>().material.color = d.Color;
+        foreach (Transform child in preview.transform) Destroy(child.gameObject);
+        ChampionModel.Build(preview.transform, d);
         if (Net.Online) Net.Pick(Content.Champions.IndexOf(d)); // the lobby shows everyone's pick
     }
 
